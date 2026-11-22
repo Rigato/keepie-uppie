@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Data** | 22/11/2026 |
-| **Status** | Para revisão do usuário antes da implementação |
+| **Status** | Aprovado e executado — fases F0–F7 concluídas em 22/11/2026 |
 | **Deriva de** | `gdd-keepie-uppie.md` (regras) · `plano-implementacao-mvp01.md` (design/aceite) · `spec-tecnica-publicacao.md` (requisitos de build) |
 | **Escopo** | Implementar o MVP1 completo, de zero, até um ZIP jogável e testável no celular |
 | **Não é** | Mudança de design. Qualquer conflito com o GDD volta como `[CONFIRMAR]`, não como invenção |
