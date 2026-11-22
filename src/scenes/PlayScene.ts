@@ -73,6 +73,7 @@ export class PlayScene extends Phaser.Scene {
   private trailIndex = 0
   private trailAt = 0
   private pauseRect = new Phaser.Geom.Rectangle(0, 0, 0, 0)
+  private kickRing!: Phaser.GameObjects.Container
 
   constructor() {
     super('Play')
@@ -124,8 +125,24 @@ export class PlayScene extends Phaser.Scene {
     const glow = this.add.circle(0, 0, TUNING.ball.radius + 18, PALETTE.ball, 0.07)
     const body = this.add.circle(0, 0, TUNING.ball.radius, PALETTE.ball)
     const rim = this.add.circle(0, 0, TUNING.ball.radius).setStrokeStyle(3, 0x000000, 0.14)
-    const shine = this.add.circle(-9, -9, 7, 0xffffff, 0.32)
+    const shine = this.add.circle(-10, -10, 8, 0xffffff, 0.32)
     this.ballView.add([glow, body, rim, shine])
+
+    // Área de chute: anel de pontos que aparece só quando a bola pode ser chutada.
+    const kickDots: Phaser.GameObjects.Arc[] = []
+    for (let i = 0; i < 10; i += 1) {
+      const angle = (i / 10) * Math.PI * 2
+      kickDots.push(
+        this.add.circle(
+          Math.cos(angle) * TUNING.kick.ringRadius,
+          Math.sin(angle) * TUNING.kick.ringRadius,
+          3,
+          PALETTE.accent,
+          0.6,
+        ),
+      )
+    }
+    this.kickRing = this.add.container(0, 0, kickDots).setDepth(9).setVisible(false)
 
     this.hud = new Hud(this, save.bestMeters)
     this.hud.setMeters(0)
@@ -266,6 +283,7 @@ export class PlayScene extends Phaser.Scene {
     this.updateInteractives(dt)
     this.updateMagnet(dt)
     this.updateFever()
+    this.updateKickRing()
     this.updateTrail()
     this.drawGrid()
     this.syncView()
@@ -550,7 +568,7 @@ export class PlayScene extends Phaser.Scene {
     if (Phaser.Geom.Rectangle.Contains(this.pauseRect, x, y - this.cameraY)) return
 
     if (this.aimedArmed) {
-      const touch = { ...this.ball, r: this.ball.r + TUNING.kick.touchPadding }
+      const touch = { ...this.ball, r: TUNING.kick.touchRadius }
       if (this.ball.vy > 0 && isInsideBall(touch, { x, y })) {
         this.beginAim(x, y)
         return
@@ -566,6 +584,7 @@ export class PlayScene extends Phaser.Scene {
     this.powerupHud.setAimed(false)
     this.aimEndsAt = this.time.now + TUNING.powerup.aimWindowMs
     this.aimPointer = { x, y }
+    this.kickRing.setVisible(false)
     this.aimUi.show(this.ball.x, this.ball.y - this.cameraY)
     audio.play('ui', { pitch: 1.5, volume: 0.8 })
   }
@@ -660,6 +679,9 @@ export class PlayScene extends Phaser.Scene {
       if (result.reason === 'miss') {
         audio.play('whiff')
         this.registerWhiff()
+        this.showMiss(x, y)
+      } else {
+        audio.play('ui', { pitch: 0.7, volume: 0.35 })
       }
       return
     }
@@ -766,8 +788,20 @@ export class PlayScene extends Phaser.Scene {
     return this.feverUntil > this.time.now
   }
 
-  private updateTrail(): void {
-    const speed = Math.hypot(this.ball.vx, this.ball.vy)
+  private updateKickRing(): void {
+    const kickable = this.ball.vy >= -TUNING.kick.apexTolerance
+    if (!kickable) {
+      this.kickRing.setVisible(false)
+      return
+    }
+    this.kickRing
+      .setVisible(true)
+      .setPosition(this.ball.x, this.ball.y)
+      .setRotation(this.time.now / 2200)
+      .setAlpha(0.55 + 0.35 * Math.sin(this.time.now / 180))
+  }
+
+  private updateTrail(): void {    const speed = Math.hypot(this.ball.vx, this.ball.vy)
     const now = this.time.now
     if (speed < 900 || now < this.trailAt) return
 
@@ -817,8 +851,22 @@ export class PlayScene extends Phaser.Scene {
     })
   }
 
-  private burst(x: number, y: number, color: number, count: number): void {
-    for (let i = 0; i < count; i += 1) {
+  private showMiss(x: number, y: number): void {
+    const ring = this.add
+      .circle(x, y, 16, PALETTE.danger, 0)
+      .setStrokeStyle(2, PALETTE.danger, 0.6)
+      .setDepth(110)
+    this.tweens.add({
+      targets: ring,
+      scale: 2.4,
+      alpha: 0,
+      duration: 280,
+      ease: 'Quad.out',
+      onComplete: () => ring.destroy(),
+    })
+  }
+
+  private burst(x: number, y: number, color: number, count: number): void {    for (let i = 0; i < count; i += 1) {
       const angle = (i / count) * Math.PI * 2
       const piece = this.add.circle(x, y, 3, color, 0.9).setDepth(110)
       this.tweens.add({
@@ -848,6 +896,7 @@ export class PlayScene extends Phaser.Scene {
     this.feverAura.setVisible(false)
     this.feverText.setVisible(false)
     this.streakText.setVisible(false)
+    this.kickRing.setVisible(false)
     audio.play('death')
     this.cameras.main.shake(180, 0.006)
     const save = this.registry.get('save') as SaveV1

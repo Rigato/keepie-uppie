@@ -4,7 +4,7 @@ import { computeKick, isInsideBall } from '../src/core/kick'
 import { TUNING } from '../src/game/tuning'
 
 function ball(overrides: Partial<BallLike> = {}): BallLike {
-  return { x: 270, y: 500, vx: 0, vy: 0, r: 26, ...overrides }
+  return { x: 270, y: 500, vx: 0, vy: 0, r: TUNING.ball.radius, ...overrides }
 }
 
 describe('computeKick', () => {
@@ -20,7 +20,7 @@ describe('computeKick', () => {
     const result = computeKick(ball({ vy: 900 }), { x: 270 - 18, y: 500 })
     expect(result.kind).toBe('kick')
     expect(result.vx).toBeGreaterThan(0)
-    expect(result.offset).toBeCloseTo(-18 / 26, 5)
+    expect(result.offset).toBeCloseTo(-18 / TUNING.kick.touchRadius, 5)
   })
 
   it('tocar na direita sobe à esquerda', () => {
@@ -28,33 +28,35 @@ describe('computeKick', () => {
     expect(result.vx).toBeLessThan(0)
   })
 
-  it('não chuta bola subindo', () => {
+  it('não chuta bola subindo de verdade', () => {
     const result = computeKick(ball({ vy: -400 }), { x: 270, y: 500 })
     expect(result).toMatchObject({ kind: 'whiff', reason: 'notFalling', vx: 0, vy: 0 })
   })
 
-  it('não chuta fora da bola', () => {
-    const result = computeKick(ball(), { x: 270 + 40, y: 500 })
+  it('tolera toque perto do ápice', () => {
+    const result = computeKick(ball({ vy: -100 }), { x: 270, y: 500 })
+    expect(result.kind).toBe('kick')
+  })
+
+  it('não chuta fora do raio generoso de toque', () => {
+    const result = computeKick(ball(), { x: 270 + 130, y: 500 })
     expect(result).toMatchObject({ kind: 'whiff', reason: 'miss' })
   })
 
-  it('aceita toque na borda exata do círculo', () => {
-    expect(isInsideBall(ball(), { x: 270 + 26, y: 500 })).toBe(true)
-    expect(isInsideBall(ball(), { x: 270 + 26.1, y: 500 })).toBe(false)
+  it('hitbox generosa: toque a 100 do centro ainda chuta, com ângulo máximo', () => {
+    const result = computeKick(ball({ vy: 900 }), { x: 270 + 100, y: 500 })
+    expect(result.kind).toBe('kick')
+    expect(result.offset).toBe(1)
   })
 
-  it('dá folga de toque sem mudar o ângulo', () => {
-    const padded = computeKick(ball({ vy: 900 }), { x: 270 + 30, y: 500 })
-    expect(padded.kind).toBe('kick')
-    expect(padded.offset).toBe(1)
-
-    const outside = computeKick(ball({ vy: 900 }), { x: 270 + 34, y: 500 })
-    expect(outside).toMatchObject({ kind: 'whiff', reason: 'miss' })
+  it('aceita toque na borda exata do círculo', () => {
+    expect(isInsideBall(ball(), { x: 270 + 30, y: 500 })).toBe(true)
+    expect(isInsideBall(ball(), { x: 270 + 30.1, y: 500 })).toBe(false)
   })
 
   it('força cresce com a velocidade de encontro', () => {
-    const slow = computeKick(ball({ vy: 300 }), { x: 270 + 20, y: 500 })
-    const fast = computeKick(ball({ vy: 1600 }), { x: 270 + 20, y: 500 })
+    const slow = computeKick(ball({ vy: 300 }), { x: 270 + 30, y: 500 })
+    const fast = computeKick(ball({ vy: 1600 }), { x: 270 + 30, y: 500 })
     expect(Math.hypot(fast.vx, fast.vy)).toBeGreaterThan(Math.hypot(slow.vx, slow.vy))
     expect(fast.power).toBeGreaterThan(slow.power)
   })

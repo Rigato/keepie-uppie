@@ -10,37 +10,45 @@ export const TUNING = {
   },
 
   ball: {
-    radius: 26,
+    radius: 30,
   },
 
   physics: {
-    gravity: 2000, // u/s²
+    gravity: 1700, // u/s²
     wallRestitution: 1,
     /** Quantos unidades de mundo equivalem a 1 metro de altitude. */
     pxPerMeter: 20,
-    maxFallSpeed: 3200,
+    maxFallSpeed: 2600,
   },
 
   kick: {
     /** Força básica somada à velocidade de encontro. */
-    baseSpeed: 1100,
+    baseSpeed: 950,
     /** Quanto da velocidade de queda vira força de chute. */
-    impactFactor: 0.55,
+    impactFactor: 0.5,
     /** Piso: toque hesitante nunca condena (~1/3 da tela de apex). [TESTE] */
-    minSpeed: 1130,
-    /** Teto da faixa: arco de ~2.3 s. [TESTE] */
-    maxSpeed: 2300,
+    minSpeed: 1000,
+    /** Teto da faixa: arco de ~2.5 s. [TESTE] */
+    maxSpeed: 2100,
     /** Componente lateral máxima no toque na borda. */
     maxLateral: 0.75,
     /** Janela central para o Perfect Touch, em fração do raio. [TESTE] */
-    perfectWindow: 0.16,
-    /** Folga invisível do alvo de toque, em unidades de mundo (dedo grande). */
-    touchPadding: 6,
+    perfectWindow: 0.22,
+    /**
+     * Raio generoso do alvo de toque e da mira (unidades de mundo). O jogador
+     * toca dentro do anel; o ângulo usa essa mesma área, então centro = reto,
+     * borda do anel = ângulo máximo.
+     */
+    touchRadius: 100,
+    /** Tolera toque perto do ápice (vy levemente negativa) em vez de exigir queda pura. */
+    apexTolerance: 120,
+    /** Anel (de pontos) que comunica a área de chute enquanto a bola cai. */
+    ringRadius: 100,
   },
 
   camera: {
     /** Altura do gatilho da catraca, em fração da tela. */
-    ratchetAt: 0.45,
+    ratchetAt: 0.4,
     /** Velocidade de acompanhamento (lerp por segundo). */
     followSpeed: 8,
   },
@@ -56,7 +64,7 @@ export const TUNING = {
 
   perfect: {
     /** Força aplicada no perfect: topo da faixa. */
-    speed: 2300,
+    speed: 2100,
   },
 
   obstacle: {
