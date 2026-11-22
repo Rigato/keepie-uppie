@@ -25,6 +25,7 @@ O Vite sobe o servidor com `host: true`, então a página também abre pelo celu
 | `npm run build` | typecheck + build estático em `dist/` |
 | `npm run preview` | serve o build de `dist/` |
 | `npm run test:e2e` | smoke E2E com Playwright contra um preview (Chromium do sistema) |
+| `npm run package` | build + validação + ZIP e manifest em `release/` |
 
 ## Estrutura
 
@@ -37,6 +38,8 @@ O Vite sobe o servidor com `host: true`, então a página também abre pelo celu
 | `src/ui` | HUD e elementos de interface |
 | `src/fx` | áudio sintetizado, partículas e shake |
 | `tests` | testes unitários |
+| `scripts` | smoke E2E e empacotamento |
+| `release` | artefatos gerados (ZIP + manifest), fora do git |
 
 ## Publicação
 
@@ -48,13 +51,15 @@ O workflow também pode ser disparado manualmente (`workflow_dispatch`). Se o ce
 
 ## Estado do projeto
 
-**Fase F6 (legibilidade e compatibilidade):** pausa com mute persistente e restart, auto-pausa ao trocar de aba, rastro da bola, hit-stop no perfect, tela de morte com moedas e jingle de recorde, e smoke E2E. O MVP completo (core, obstáculos, interativos, powerups e skill) está jogável. Falta o empacotamento da F7.
+**MVP01 completo (F7):** core loop, obstáculos, interativos, Magnet, Aimed Shot, perfect/streak/febre, pausa/mute, save local e pacote validado para portais. Jogável em https://rigato.github.io/keepie-uppie/. O próximo passo é o **playtest** — ver `docs/playtest-mvp01.md` — e só depois a publicação nos portais.
 
 ## Documentação
 
 - `docs/gdd-keepie-uppie.md` — fonte única de verdade de design
 - `docs/plano-implementacao-mvp01.md` — escopo, blocos de aceite e playtest
 - `docs/plano-tecnico-mvp01.md` — arquitetura, fases e gates
+- `docs/playtest-mvp01.md` — roteiro e formulário das 6 perguntas
+- `docs/release/v0.1.0-mvp1.md` — release do MVP, hash do pacote e limitações
 - `AGENTS.md` — regras de trabalho e convenção Fase / Lote / Bloco
 
 Repositório: https://github.com/Rigato/keepie-uppie

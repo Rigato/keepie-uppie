@@ -11,13 +11,15 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "node scripts/smoke.mjs"
+    "test:e2e": "node scripts/smoke.mjs",
+    "package": "npm run build && node scripts/package.mjs"
   },
   "dependencies": {
     "phaser": "^3.90.0"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
+    "jszip": "^3.10.2",
     "playwright-core": "^1.65.1",
     "typescript": "^5.9.3",
     "vite": "^7.3.8",

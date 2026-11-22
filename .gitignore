@@ -6,6 +6,7 @@ node_modules/
 dist/
 .vite/
 coverage/
+/release/
 
 # Testes
 test-results/
