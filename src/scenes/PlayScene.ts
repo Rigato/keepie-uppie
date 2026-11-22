@@ -1,8 +1,9 @@
 import Phaser from 'phaser'
 import { metersFromTop, ratchetCameraY } from '../core/camera'
 import { reflectVelocity } from '../core/collision'
+import { resolveAim } from '../core/aim'
 import { InteractiveSpawner } from '../core/interactive-spawner'
-import { computeKick } from '../core/kick'
+import { computeKick, isInsideBall } from '../core/kick'
 import { ObstacleSpawner } from '../core/spawner'
 import { audio } from '../fx/audio'
 import { BUILD_LABEL } from '../game/build-info'
@@ -19,7 +20,9 @@ import {
   type InteractiveInstance,
 } from '../objects/interactives'
 import { formatMeters, type SaveStore, type SaveV1 } from '../platform/storage'
+import { AimUi } from '../ui/aim'
 import { Hud } from '../ui/hud'
+import { PowerupHud } from '../ui/powerup-hud'
 import { drawBackdrop } from '../ui/backdrop'
 
 type BallState = BallLike
@@ -49,7 +52,15 @@ export class PlayScene extends Phaser.Scene {
   private obstacles: ObstacleInstance[] = []
   private interactiveSpawner = new InteractiveSpawner()
   private interactives: InteractiveInstance[] = []
-  private armedPowerup: 'magnet' | 'aimed' | null = null
+  private powerupHud!: PowerupHud
+  private aimUi!: AimUi
+  private magnetAura!: Phaser.GameObjects.Arc
+  private aimedArmed = false
+  private magnetEndsAt = 0
+  private magnetHudAt = 0
+  private aiming = false
+  private aimEndsAt = 0
+  private aimPointer = { x: 0, y: 0 }
 
   constructor() {
     super('Play')
@@ -73,7 +84,11 @@ export class PlayScene extends Phaser.Scene {
     this.obstacles = []
     this.interactiveSpawner.reset((Math.random() * 0xffffffff) >>> 0)
     this.interactives = []
-    this.armedPowerup = null
+    this.aimedArmed = false
+    this.magnetEndsAt = 0
+    this.magnetHudAt = 0
+    this.aiming = false
+    this.aimEndsAt = 0
     DEBUG_STATE.powerup = '—'
 
     this.cameras.main.setScroll(0, 0)
@@ -96,6 +111,15 @@ export class PlayScene extends Phaser.Scene {
     this.hud = new Hud(this, save.bestMeters)
     this.hud.setMeters(0)
     this.hud.setCoins(0)
+
+    this.powerupHud = new PowerupHud(this)
+    this.aimUi = new AimUi(this)
+
+    this.magnetAura = this.add
+      .circle(0, 0, TUNING.powerup.magnetRadius, PALETTE.magnet, 0.06)
+      .setStrokeStyle(2, PALETTE.magnet, 0.22)
+      .setDepth(9)
+      .setVisible(false)
 
     this.hint = this.add
       .text(width / 2, 560, 'TAP THE BALL', {
@@ -120,9 +144,21 @@ export class PlayScene extends Phaser.Scene {
       .setDepth(100)
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      this.handleTap(pointer.worldX, pointer.worldY)
+      this.handlePointerDown(pointer.worldX, pointer.worldY)
     })
-    this.input.keyboard?.on('keydown-SPACE', () => this.handleTap(this.ball.x, this.ball.y))
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (!this.aiming) return
+      this.aimPointer.x = pointer.worldX
+      this.aimPointer.y = pointer.worldY
+    })
+    this.input.on('pointerup', () => {
+      if (this.aiming) this.fireAim(false)
+    })
+    this.input.keyboard?.on('keydown-SPACE', () => {
+      if (this.aiming) this.fireAim(false)
+      else if (this.aimedArmed) this.beginAim(this.ball.x, this.ball.y - 180)
+      else this.handleTap(this.ball.x, this.ball.y)
+    })
 
     gameEvents.emit('runStart', {})
   }
@@ -133,11 +169,18 @@ export class PlayScene extends Phaser.Scene {
     const slow = (this.registry.get('timeScale') as number | undefined) ?? 1
     const dt = (Math.min(deltaMs, 50) / 1000) * slow
 
+    if (this.aiming) {
+      this.updateAim()
+      this.syncView()
+      return
+    }
+
     this.stepPhysics(dt)
     this.updateCamera()
     this.updateAltitude()
     this.updateObstacles(dt)
     this.updateInteractives(dt)
+    this.updateMagnet(dt)
     this.drawGrid()
     this.syncView()
   }
@@ -337,9 +380,20 @@ export class PlayScene extends Phaser.Scene {
         break
       }
       case 'pickup': {
-        this.armedPowerup = contact.pickup ?? null
-        DEBUG_STATE.powerup = this.armedPowerup ?? '—'
         audio.play('pickup')
+        if (contact.pickup === 'magnet') {
+          this.magnetEndsAt = this.time.now + TUNING.powerup.magnetDurationMs
+          this.magnetHudAt = 0
+          this.magnetAura.setVisible(true)
+          this.powerupHud.setMagnet(
+            true,
+            TUNING.powerup.magnetDurationMs,
+            TUNING.powerup.magnetDurationMs,
+          )
+        } else if (contact.pickup === 'aimed') {
+          this.aimedArmed = true
+          this.powerupHud.setAimed(true)
+        }
         if (contact.pickup) {
           gameEvents.emit('pickup', {
             x: contact.point.x,
@@ -361,6 +415,129 @@ export class PlayScene extends Phaser.Scene {
     DEBUG_STATE.coins = this.coins
   }
 
+  private updateMagnet(dt: number): void {
+    const now = this.time.now
+
+    if (this.magnetEndsAt > now) {
+      this.magnetAura.setVisible(true).setPosition(this.ball.x, this.ball.y)
+
+      for (const item of this.interactives) {
+        if (item.kind !== 'coin' || item.spent) continue
+        const dx = this.ball.x - item.root.x
+        const dy = this.ball.y - item.root.y
+        if (Math.hypot(dx, dy) <= TUNING.powerup.magnetRadius) {
+          item.attract?.(
+            { x: this.ball.x, y: this.ball.y },
+            dt,
+            TUNING.powerup.magnetPullSpeed,
+          )
+        }
+      }
+
+      if (now >= this.magnetHudAt) {
+        this.magnetHudAt = now + 100
+        this.powerupHud.setMagnet(
+          true,
+          this.magnetEndsAt - now,
+          TUNING.powerup.magnetDurationMs,
+        )
+      }
+      return
+    }
+
+    if (this.magnetEndsAt !== 0) {
+      this.magnetEndsAt = 0
+      this.magnetAura.setVisible(false)
+      this.powerupHud.setMagnet(false, 0, TUNING.powerup.magnetDurationMs)
+    }
+  }
+
+  private handlePointerDown(x: number, y: number): void {
+    if (this.dead) {
+      if (this.retryReady) this.retry()
+      return
+    }
+    if (this.aiming) return
+
+    if (this.aimedArmed) {
+      const touch = { ...this.ball, r: this.ball.r + TUNING.kick.touchPadding }
+      if (this.ball.vy > 0 && isInsideBall(touch, { x, y })) {
+        this.beginAim(x, y)
+        return
+      }
+    }
+
+    this.handleTap(x, y)
+  }
+
+  private beginAim(x: number, y: number): void {
+    this.aiming = true
+    this.aimedArmed = false
+    this.powerupHud.setAimed(false)
+    this.aimEndsAt = this.time.now + TUNING.powerup.aimWindowMs
+    this.aimPointer = { x, y }
+    this.aimUi.show(this.ball.x, this.ball.y - this.cameraY)
+    audio.play('ui', { pitch: 1.5, volume: 0.8 })
+  }
+
+  private updateAim(): void {
+    const now = this.time.now
+    const remaining = Math.max(0, this.aimEndsAt - now)
+    const aim = resolveAim(this.ball, this.aimPointer, false)
+
+    const rawLength = Math.hypot(
+      this.aimPointer.x - this.ball.x,
+      this.aimPointer.y - this.ball.y,
+    )
+    const shownLength = Math.min(rawLength, TUNING.powerup.aimMaxDrag)
+    const ballScreenX = this.ball.x
+    const ballScreenY = this.ball.y - this.cameraY
+
+    this.aimUi.update(ballScreenX, ballScreenY, {
+      pointerX: ballScreenX + aim.dir.x * shownLength,
+      pointerY: ballScreenY + aim.dir.y * shownLength,
+      ratio: aim.ratio,
+      remainingMs: remaining,
+      windowMs: TUNING.powerup.aimWindowMs,
+      maxDrag: TUNING.powerup.aimMaxDrag,
+    })
+
+    if (remaining <= 0) this.fireAim(true)
+  }
+
+  private fireAim(timedOut: boolean): void {
+    if (!this.aiming) return
+
+    const shot = resolveAim(this.ball, this.aimPointer, timedOut)
+    this.aiming = false
+    this.aimUi.hide()
+
+    this.ball.vx = shot.dir.x * shot.speed
+    this.ball.vy = shot.dir.y * shot.speed
+    this.lastArc((2 * shot.speed) / TUNING.physics.gravity, shot.ratio)
+    this.markStarted()
+
+    audio.play('perfect', { pitch: 0.9, volume: 0.9 })
+    this.cameras.main.shake(90, 0.005)
+    this.tweens.add({
+      targets: this.ballView,
+      scaleX: 1.24,
+      scaleY: 0.76,
+      duration: 85,
+      yoyo: true,
+      ease: 'Quad.out',
+    })
+  }
+
+  private markStarted(): void {
+    if (this.started) return
+    this.started = true
+    this.startY = this.ball.y
+    this.minY = this.ball.y
+    this.hint?.setVisible(false)
+    this.hint = undefined
+  }
+
   private syncView(): void {
     this.ballView.setPosition(this.ball.x, this.ball.y)
 
@@ -370,6 +547,13 @@ export class PlayScene extends Phaser.Scene {
     DEBUG_STATE.ballVy = this.ball.vy
     DEBUG_STATE.meters = this.meters
     DEBUG_STATE.coins = this.coins
+    DEBUG_STATE.powerup = this.aiming
+      ? 'aiming'
+      : this.magnetEndsAt > this.time.now
+        ? 'magnet'
+        : this.aimedArmed
+          ? 'aimed'
+          : '—'
     DEBUG_STATE.extra = `obs ${this.obstacles.length} · itv ${this.interactives.length}`
   }
 
@@ -389,13 +573,7 @@ export class PlayScene extends Phaser.Scene {
     this.ball.vy = result.vy
     this.lastArc(result.arcTime, result.power)
 
-    if (!this.started) {
-      this.started = true
-      this.startY = this.ball.y
-      this.minY = this.ball.y
-      this.hint?.setVisible(false)
-      this.hint = undefined
-    }
+    if (!this.started) this.markStarted()
 
     audio.play(result.perfect ? 'perfect' : 'kick', { pitch: result.perfect ? 1 : 0.95 + result.power * 0.1 })
     this.cameras.main.shake(60, TUNING.fx.shakeKick)
@@ -417,6 +595,13 @@ export class PlayScene extends Phaser.Scene {
   private die(): void {
     if (this.dead) return
     this.dead = true
+    this.aiming = false
+    this.aimedArmed = false
+    this.magnetEndsAt = 0
+    this.aimUi.hide()
+    this.powerupHud.setAimed(false)
+    this.powerupHud.setMagnet(false, 0, TUNING.powerup.magnetDurationMs)
+    this.magnetAura.setVisible(false)
     audio.play('death')
     this.cameras.main.shake(180, 0.006)
     const save = this.registry.get('save') as SaveV1

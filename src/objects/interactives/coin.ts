@@ -30,7 +30,11 @@ export const createCoin: InteractiveFactory = (scene, spec) => {
   const radius = TUNING.collect.coinRadius
   const variation = Math.min(1, Math.max(0, spec.variation))
 
-  const root = scene.add.container(spec.x, spec.y).setDepth(DEPTH)
+  // Posição mutável: o Magnet puxa a moeda sem mexer na cena.
+  let x = spec.x
+  let y = spec.y
+
+  const root = scene.add.container(x, y).setDepth(DEPTH)
 
   // Corpo: disco dourado, aro interno mais escuro e brilho branco no canto.
   const visual = scene.add.graphics()
@@ -53,12 +57,7 @@ export const createCoin: InteractiveFactory = (scene, spec) => {
     ease: 'Sine.easeInOut',
   })
 
-  const bounds = new Phaser.Geom.Rectangle(
-    spec.x - radius,
-    spec.y - radius,
-    radius * 2,
-    radius * 2,
-  )
+  const bounds = new Phaser.Geom.Rectangle(x - radius, y - radius, radius * 2, radius * 2)
 
   // Fragmentos vivem na cena (não no root), pois o root pode sumir logo após o
   // contato; cada um se autolimpa ao fim do tween.
@@ -98,7 +97,7 @@ export const createCoin: InteractiveFactory = (scene, spec) => {
   function contact(ball: { x: number; y: number; r: number }): InteractiveContact | null {
     if (destroyed || spent) return null
 
-    const hit = Math.hypot(ball.x - spec.x, ball.y - spec.y) <= radius + ball.r
+    const hit = Math.hypot(ball.x - x, ball.y - y) <= radius + ball.r
     if (!hit) return null
 
     spent = true
@@ -106,9 +105,23 @@ export const createCoin: InteractiveFactory = (scene, spec) => {
     return {
       result: 'collect',
       coins: TUNING.collect.coinValue,
-      point: { x: spec.x, y: spec.y },
+      point: { x, y },
       strength: CONTACT_STRENGTH,
     }
+  }
+
+  function attract(target: { x: number; y: number }, dtSeconds: number, speed: number): void {
+    if (destroyed || spent) return
+    const dx = target.x - x
+    const dy = target.y - y
+    const distance = Math.hypot(dx, dy)
+    if (distance < 1) return
+
+    const step = Math.min(distance, Math.max(0, speed * dtSeconds))
+    x += (dx / distance) * step
+    y += (dy / distance) * step
+    root.setPosition(x, y)
+    bounds.setPosition(x - radius, y - radius)
   }
 
   function react(contactResult: InteractiveContact): void {
@@ -141,6 +154,7 @@ export const createCoin: InteractiveFactory = (scene, spec) => {
       // Estática: o brilho é um tween contínuo.
     },
     contact,
+    attract,
     react,
     destroy,
   }

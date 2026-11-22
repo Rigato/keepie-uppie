@@ -28,6 +28,8 @@ export interface InteractiveInstance {
   readonly spent: boolean
   update(dtSeconds: number, timeMs: number): void
   contact(ball: { x: number; y: number; r: number }): InteractiveContact | null
+  /** Magnet: moedas se deslocam na direção do alvo. Outros kinds não implementam. */
+  attract?(target: { x: number; y: number }, dtSeconds: number, speed: number): void
   /** Feedback local: pop da moeda, flash da argola, compressão da mola. */
   react(contact: InteractiveContact): void
   destroy(): void

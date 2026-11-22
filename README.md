@@ -47,7 +47,7 @@ O workflow também pode ser disparado manualmente (`workflow_dispatch`). Se o ce
 
 ## Estado do projeto
 
-**Fase F3 (interativos):** moedas com contador, argolas com burst, molas que lançam sem consumir chute e pickups de Magnet/Aimed Shot (efeito entra em F4). Obstáculos, core loop e save seguem da F1/F2. Powerups e camadas de skill entram nas fases seguintes.
+**Fase F4 (powerups):** Magnet (15 s, só moedas, com aura e chip de estado) e Aimed Shot (arma sem prazo, mira de 2 s com arrasto, timeout com força média). Interativos, obstáculos e core loop seguem das fases anteriores. Perfect, streak e febre entram em F5.
 
 ## Documentação
 

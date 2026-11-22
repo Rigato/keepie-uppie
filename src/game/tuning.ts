@@ -147,7 +147,13 @@ export const TUNING = {
     /** Força mínima aceitável no timeout; abaixo disso aplica média default. */
     aimMinForceRatio: 0.15,
     aimDefaultForceRatio: 0.5,
-    aimMaxForceRatio: 1.15,
+    /** Arrasto (em unidades de mundo) que satura a força. */
+    aimMaxDrag: 220,
+    /** Arrasto mínimo para a mira contar; abaixo disso é "tap" e usa a força default. */
+    aimDeadZone: 24,
+    /** Faixa de velocidade do tiro mirado, fora da faixa normal. */
+    aimMinSpeed: 1300,
+    aimMaxSpeed: 2650,
     /** Duração do Magnet. [TESTE] */
     magnetDurationMs: 15000,
     /** Raio de puxão: ~1/3 da largura. [TESTE] */
