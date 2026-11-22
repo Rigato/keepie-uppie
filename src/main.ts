@@ -6,6 +6,7 @@ import { DEBUG_STATE } from './game/debug-state'
 import { createPlatform } from './platform/boot'
 import { SaveStore } from './platform/storage'
 import { DebugOverlay } from './scenes/DebugOverlay'
+import { PauseScene } from './scenes/PauseScene'
 import { PlayScene } from './scenes/PlayScene'
 import { BootScene, TitleScene } from './scenes/TitleScene'
 
@@ -23,7 +24,7 @@ async function boot(): Promise<void> {
   const save = await saveStore.load()
   audio.setMuted(save.muted)
 
-  const scenes: Phaser.Types.Scenes.SceneType[] = [BootScene, TitleScene, PlayScene]
+  const scenes: Phaser.Types.Scenes.SceneType[] = [BootScene, TitleScene, PlayScene, PauseScene]
   if (debug) scenes.push(DebugOverlay)
 
   const game = new Phaser.Game(

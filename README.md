@@ -24,6 +24,7 @@ O Vite sobe o servidor com `host: true`, então a página também abre pelo celu
 | `npm run test` | testes unitários (Vitest) |
 | `npm run build` | typecheck + build estático em `dist/` |
 | `npm run preview` | serve o build de `dist/` |
+| `npm run test:e2e` | smoke E2E com Playwright contra um preview (Chromium do sistema) |
 
 ## Estrutura
 
@@ -47,7 +48,7 @@ O workflow também pode ser disparado manualmente (`workflow_dispatch`). Se o ce
 
 ## Estado do projeto
 
-**Fase F5 (skill):** Perfect Touch com força no teto e celebração, streak `NICE → GREAT → ON FIRE` e febre de 8 s com moedas x2. Magnet, Aimed Shot, interativos, obstáculos e core loop seguem das fases anteriores. Polimento, áudio completo e compatibilidade entram em F6.
+**Fase F6 (legibilidade e compatibilidade):** pausa com mute persistente e restart, auto-pausa ao trocar de aba, rastro da bola, hit-stop no perfect, tela de morte com moedas e jingle de recorde, e smoke E2E. O MVP completo (core, obstáculos, interativos, powerups e skill) está jogável. Falta o empacotamento da F7.
 
 ## Documentação
 

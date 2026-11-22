@@ -68,6 +68,11 @@ export class PlayScene extends Phaser.Scene {
   private streakText!: Phaser.GameObjects.Text
   private feverText!: Phaser.GameObjects.Text
   private feverHudAt = 0
+  private hitStopUntil = 0
+  private trail: Phaser.GameObjects.Arc[] = []
+  private trailIndex = 0
+  private trailAt = 0
+  private pauseRect = new Phaser.Geom.Rectangle(0, 0, 0, 0)
 
   constructor() {
     super('Play')
@@ -99,6 +104,10 @@ export class PlayScene extends Phaser.Scene {
     this.streak.reset()
     this.feverUntil = 0
     this.feverHudAt = 0
+    this.hitStopUntil = 0
+    this.trail = []
+    this.trailIndex = 0
+    this.trailAt = 0
     DEBUG_STATE.powerup = '—'
 
     this.cameras.main.setScroll(0, 0)
@@ -159,6 +168,38 @@ export class PlayScene extends Phaser.Scene {
       .setDepth(100)
       .setVisible(false)
 
+    // Rastro curto: leitura de velocidade sem custo por frame.
+    for (let i = 0; i < 6; i += 1) {
+      this.trail.push(
+        this.add.circle(0, 0, TUNING.ball.radius * 0.75, PALETTE.ball, 0).setDepth(9),
+      )
+    }
+
+    // Pausa: alvo fixo no canto superior direito, abaixo das moedas.
+    this.pauseRect.setTo(width - 70, 72, 64, 64)
+    const pauseZone = this.add
+      .zone(width - 38, 104, 64, 64)
+      .setScrollFactor(0)
+      .setDepth(101)
+      .setInteractive({ useHandCursor: true })
+    const pauseIcon = this.add.container(width - 38, 104).setScrollFactor(0).setDepth(101)
+    pauseIcon.add([
+      this.add.circle(0, 0, 18, PALETTE.bg, 0.45).setStrokeStyle(1, PALETTE.inkDim, 0.45),
+      this.add.rectangle(-5, 0, 4, 14, PALETTE.ink).setAlpha(0.85),
+      this.add.rectangle(5, 0, 4, 14, PALETTE.ink).setAlpha(0.85),
+    ])
+    pauseZone.on('pointerup', () => this.openPause())
+
+    const onVisibility = (): void => {
+      if (document.hidden && this.scene.isActive() && !this.dead && !this.aiming) {
+        this.openPause()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+    })
+
     this.hint = this.add
       .text(width / 2, 560, 'TAP THE BALL', {
         fontFamily: FONT_SANS,
@@ -213,6 +254,11 @@ export class PlayScene extends Phaser.Scene {
       return
     }
 
+    if (this.time.now < this.hitStopUntil) {
+      this.syncView()
+      return
+    }
+
     this.stepPhysics(dt)
     this.updateCamera()
     this.updateAltitude()
@@ -220,6 +266,7 @@ export class PlayScene extends Phaser.Scene {
     this.updateInteractives(dt)
     this.updateMagnet(dt)
     this.updateFever()
+    this.updateTrail()
     this.drawGrid()
     this.syncView()
   }
@@ -500,6 +547,7 @@ export class PlayScene extends Phaser.Scene {
       return
     }
     if (this.aiming) return
+    if (Phaser.Geom.Rectangle.Contains(this.pauseRect, x, y - this.cameraY)) return
 
     if (this.aimedArmed) {
       const touch = { ...this.ball, r: this.ball.r + TUNING.kick.touchPadding }
@@ -649,7 +697,10 @@ export class PlayScene extends Phaser.Scene {
       audio.play(kick.label === 'ON FIRE' ? 'fever' : 'streakUp')
     }
     if (kick.feverStarted) this.startFever()
-    if (perfect) this.showPerfect()
+    if (perfect) {
+      this.hitStopUntil = this.time.now + TUNING.fx.hitStopMs
+      this.showPerfect()
+    }
   }
 
   private registerWhiff(): void {
@@ -713,6 +764,34 @@ export class PlayScene extends Phaser.Scene {
 
   private isFever(): boolean {
     return this.feverUntil > this.time.now
+  }
+
+  private updateTrail(): void {
+    const speed = Math.hypot(this.ball.vx, this.ball.vy)
+    const now = this.time.now
+    if (speed < 900 || now < this.trailAt) return
+
+    this.trailAt = now + 45
+    const ghost = this.trail[this.trailIndex]
+    this.trailIndex = (this.trailIndex + 1) % this.trail.length
+    if (!ghost) return
+
+    this.tweens.killTweensOf(ghost)
+    ghost.setPosition(this.ball.x, this.ball.y).setAlpha(0.16).setScale(0.9)
+    this.tweens.add({
+      targets: ghost,
+      alpha: 0,
+      scale: 0.45,
+      duration: 220,
+      ease: 'Quad.out',
+    })
+  }
+
+  private openPause(): void {
+    if (this.dead || this.scene.isActive('Pause')) return
+    audio.play('ui')
+    this.scene.launch('Pause')
+    this.scene.pause()
   }
 
   private popLabel(text: string, color: string, big: boolean, offsetY: number): void {
@@ -816,6 +895,13 @@ export class PlayScene extends Phaser.Scene {
         fontStyle: 'bold',
       })
       .setOrigin(0.5)
+    const coins = this.add
+      .text(width / 2, height * 0.47, `+${this.coins} coins`, {
+        fontFamily: FONT_MONO,
+        fontSize: '18px',
+        color: CSS_PALETTE.ball,
+      })
+      .setOrigin(0.5)
     const best = this.add
       .text(width / 2, height * 0.51, isBest ? 'NEW BEST!' : `BEST ${formatMeters(save.bestMeters)}`, {
         fontFamily: FONT_SANS,
@@ -843,13 +929,18 @@ export class PlayScene extends Phaser.Scene {
       ease: 'Sine.inOut',
     })
 
-    overlay.add([dim, title, score, best, retry])
+    overlay.add([dim, title, score, coins, best, retry])
     dim.setScrollFactor(0)
     title.setScrollFactor(0)
     score.setScrollFactor(0)
+    coins.setScrollFactor(0)
     best.setScrollFactor(0)
     retry.setScrollFactor(0)
     this.retryReady = true
+
+    if (isBest) {
+      this.time.delayedCall(250, () => audio.play('fever', { pitch: 1.2, volume: 0.7 }))
+    }
   }
 
   private retry(): void {

@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { audio } from '../fx/audio'
 import { BUILD_LABEL } from '../game/build-info'
-import { FONT_SANS } from '../game/config'
+import { FONT_MONO, FONT_SANS } from '../game/config'
 import { CSS_PALETTE, PALETTE } from '../game/palette'
 import { TUNING } from '../game/tuning'
 import type { PlatformService } from '../platform/types'
@@ -97,6 +97,16 @@ export class TitleScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setLetterSpacing(3)
+
+    this.add
+      .text(width / 2, height * 0.838, `COINS ${save.totalCoins}`, {
+        fontFamily: FONT_MONO,
+        fontSize: '13px',
+        color: CSS_PALETTE.ball,
+      })
+      .setOrigin(0.5)
+      .setLetterSpacing(2)
+      .setAlpha(0.9)
 
     this.add
       .text(width / 2, 26, BUILD_LABEL, {
