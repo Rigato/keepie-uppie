@@ -40,7 +40,7 @@ export const TUNING = {
 
   camera: {
     /** Altura do gatilho da catraca, em fração da tela. */
-    ratchetAt: 0.58,
+    ratchetAt: 0.45,
     /** Velocidade de acompanhamento (lerp por segundo). */
     followSpeed: 8,
   },
@@ -50,6 +50,8 @@ export const TUNING = {
     deathDelayMs: 900,
     /** Altura de spawn inicial da bola (a partir do topo). */
     spawnY: 220,
+    /** Gravidade reduzida antes do primeiro chute: janela justa de entrada. */
+    serveGravityScale: 0.6,
   },
 
   perfect: {

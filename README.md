@@ -45,7 +45,7 @@ O workflow também pode ser disparado manualmente (`workflow_dispatch`). Se o ce
 
 ## Estado do projeto
 
-**Fase F0 (fundação):** shell de escala portrait, cenas iniciais, armazenamento local com melhor score e esteira de publicação. Chute, obstáculos, interativos e powerups entram nas fases seguintes.
+**Fase F1 (core loop):** chute por ponto de toque (só em queda), força por velocidade de encontro com piso, whiff neutro, câmera-catraca, paredes, morte e retry, altitude em metros e melhor score local. A bola de demonstração da F0 deu lugar ao loop real. Obstáculos, interativos e powerups entram nas fases seguintes.
 
 ## Documentação
 

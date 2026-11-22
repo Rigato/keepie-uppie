@@ -131,7 +131,7 @@ export class DebugOverlay extends Phaser.Scene {
     this.kickRow.value.setText(
       `arc ${DEBUG_STATE.lastKickArc.toFixed(2)} s · power ${Math.round(DEBUG_STATE.lastKickPower)}`,
     )
-    this.saveRow.value.setText(`best ${best} · totalCoins ${total} · ${mute}`)
+    this.saveRow.value.setText(`best ${best} · coins ${total} · ${mute}`)
 
     const showExtra = extra.length > 0
     this.extraRow.label.setVisible(showExtra)
