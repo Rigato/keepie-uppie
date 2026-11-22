@@ -1,30 +1,29 @@
 import Phaser from 'phaser'
 import { metersFromTop, ratchetCameraY } from '../core/camera'
+import { reflectVelocity } from '../core/collision'
 import { computeKick } from '../core/kick'
+import { ObstacleSpawner } from '../core/spawner'
 import { audio } from '../fx/audio'
 import { BUILD_LABEL } from '../game/build-info'
 import { FONT_MONO, FONT_SANS } from '../game/config'
 import { DEBUG_STATE } from '../game/debug-state'
 import { gameEvents } from '../game/events'
+import type { BallLike } from '../game/contracts'
 import { CSS_PALETTE, PALETTE } from '../game/palette'
 import { TUNING } from '../game/tuning'
+import { createObstacle, type ObstacleContact, type ObstacleInstance } from '../objects/obstacles'
 import { formatMeters, type SaveStore, type SaveV1 } from '../platform/storage'
 import { Hud } from '../ui/hud'
 import { drawBackdrop } from '../ui/backdrop'
 
-interface BallState {
-  x: number
-  y: number
-  vx: number
-  vy: number
-}
+type BallState = BallLike
 
 /**
  * F1 — core loop: chute, catraca, paredes, morte e retry.
  * A física é integrada aqui (passo fixo por delta) e a regra de chute vive em core/kick.ts.
  */
 export class PlayScene extends Phaser.Scene {
-  private ball: BallState = { x: 0, y: 0, vx: 0, vy: 0 }
+  private ball: BallState = { x: 0, y: 0, vx: 0, vy: 0, r: TUNING.ball.radius }
   private ballView!: Phaser.GameObjects.Container
   private hud!: Hud
   private grid!: Phaser.GameObjects.Graphics
@@ -40,16 +39,18 @@ export class PlayScene extends Phaser.Scene {
   private cameraY = 0
   private lastWholeMeters = -1
   private wasBest = false
+  private spawner = new ObstacleSpawner()
+  private obstacles: ObstacleInstance[] = []
 
   constructor() {
     super('Play')
   }
 
   create(): void {
-    const { width, height } = TUNING.world
+    const { width } = TUNING.world
     const save = this.registry.get('save') as SaveV1
 
-    this.ball = { x: width / 2, y: TUNING.run.spawnY, vx: 0, vy: 0 }
+    this.ball = { x: width / 2, y: TUNING.run.spawnY, vx: 0, vy: 0, r: TUNING.ball.radius }
     this.started = false
     this.dead = false
     this.retryReady = false
@@ -59,11 +60,18 @@ export class PlayScene extends Phaser.Scene {
     this.coins = 0
     this.cameraY = 0
     this.lastWholeMeters = -1
+    this.spawner.reset((Math.random() * 0xffffffff) >>> 0)
+    this.obstacles = []
 
     this.cameras.main.setScroll(0, 0)
 
     drawBackdrop(this, { walls: true }).setScrollFactor(0).setDepth(0)
     this.grid = this.add.graphics().setDepth(1)
+
+    // Scrim do topo: obstáculos somem atrás do HUD em vez de competir com ele.
+    const scrim = this.add.graphics().setScrollFactor(0).setDepth(90)
+    scrim.fillGradientStyle(PALETTE.bg, PALETTE.bg, PALETTE.bg, PALETTE.bg, 0.88, 0.88, 0, 0)
+    scrim.fillRect(0, 0, width, 170)
 
     this.ballView = this.add.container(this.ball.x, this.ball.y).setDepth(10)
     const glow = this.add.circle(0, 0, TUNING.ball.radius + 18, PALETTE.ball, 0.07)
@@ -88,7 +96,7 @@ export class PlayScene extends Phaser.Scene {
       .setDepth(20)
 
     this.add
-      .text(width / 2, height - 30, BUILD_LABEL, {
+      .text(width / 2, 26, BUILD_LABEL, {
         fontFamily: FONT_SANS,
         fontSize: '11px',
         color: CSS_PALETTE.inkDim,
@@ -96,7 +104,7 @@ export class PlayScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setAlpha(0.5)
       .setScrollFactor(0)
-      .setDepth(20)
+      .setDepth(100)
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       this.handleTap(pointer.worldX, pointer.worldY)
@@ -115,6 +123,7 @@ export class PlayScene extends Phaser.Scene {
     this.stepPhysics(dt)
     this.updateCamera()
     this.updateAltitude()
+    this.updateObstacles(dt)
     this.drawGrid()
     this.syncView()
   }
@@ -161,6 +170,93 @@ export class PlayScene extends Phaser.Scene {
     }
   }
 
+  private updateObstacles(dt: number): void {
+    const time = this.time.now
+    const specs = this.spawner.update({
+      cameraTop: this.cameraY,
+      meters: this.meters,
+      ballX: this.ball.x,
+    })
+
+    for (const spec of specs) {
+      const obstacle = createObstacle(this, spec)
+      if (obstacle) this.obstacles.push(obstacle)
+    }
+
+    for (let i = 0; i < this.obstacles.length; i += 1) {
+      const obstacle = this.obstacles[i]
+      if (!obstacle) continue
+      obstacle.update(dt, time)
+      const contact = obstacle.contact(this.ball)
+      if (contact) this.applyObstacleContact(obstacle, contact)
+    }
+
+    for (let i = this.obstacles.length - 1; i >= 0; i -= 1) {
+      const obstacle = this.obstacles[i]
+      if (!obstacle) continue
+      const belowScreen =
+        obstacle.bounds.y - this.cameraY >
+        TUNING.world.height + TUNING.obstacle.despawnMargin
+      const birdGone = obstacle.kind === 'bird' && obstacle.spent
+      if (belowScreen || birdGone) {
+        obstacle.destroy()
+        this.obstacles.splice(i, 1)
+      }
+    }
+  }
+
+  private applyObstacleContact(obstacle: ObstacleInstance, contact: ObstacleContact): void {
+    switch (contact.result) {
+      case 'reflect': {
+        if (contact.normal) {
+          const reflected = reflectVelocity(
+            this.ball.vx,
+            this.ball.vy,
+            contact.normal,
+            TUNING.physics.wallRestitution,
+          )
+          this.ball.vx = reflected.vx
+          this.ball.vy = reflected.vy
+          const push = (contact.penetration ?? 0) + 1
+          this.ball.x += contact.normal.x * push
+          this.ball.y += contact.normal.y * push
+        }
+        audio.play('wall', { pitch: 0.62, volume: 0.9 })
+        this.cameras.main.shake(70, TUNING.fx.shakeHard * contact.strength)
+        break
+      }
+      case 'damp': {
+        const keep = 1 - TUNING.obstacle.softDamp
+        this.ball.vx *= keep
+        this.ball.vy *= keep
+        audio.play('damp')
+        break
+      }
+      case 'shatter': {
+        audio.play('shatter')
+        this.cameras.main.shake(90, TUNING.fx.shakeShatter * contact.strength)
+        break
+      }
+      case 'deflect': {
+        if (contact.impulse) {
+          this.ball.vx += contact.impulse.x
+          this.ball.vy += contact.impulse.y
+        }
+        audio.play('wall', { pitch: 1.7, volume: 0.5 })
+        break
+      }
+    }
+
+    obstacle.react(contact)
+    gameEvents.emit('obstacleContact', {
+      x: contact.point.x,
+      y: contact.point.y,
+      kind: obstacle.kind,
+      result: contact.result,
+      strength: contact.strength,
+    })
+  }
+
   private syncView(): void {
     this.ballView.setPosition(this.ball.x, this.ball.y)
 
@@ -170,6 +266,7 @@ export class PlayScene extends Phaser.Scene {
     DEBUG_STATE.ballVy = this.ball.vy
     DEBUG_STATE.meters = this.meters
     DEBUG_STATE.coins = this.coins
+    DEBUG_STATE.extra = `obs ${this.obstacles.length}`
   }
 
   private handleTap(x: number, y: number): void {
@@ -178,7 +275,7 @@ export class PlayScene extends Phaser.Scene {
       return
     }
 
-    const result = computeKick({ ...this.ball, r: TUNING.ball.radius }, { x, y })
+    const result = computeKick(this.ball, { x, y })
     if (result.kind === 'whiff') {
       audio.play('whiff')
       return

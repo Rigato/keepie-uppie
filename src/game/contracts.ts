@@ -21,6 +21,9 @@ export type EntityKind =
   | 'pickupMagnet'
   | 'pickupAimed'
 
+/** Obstáculos que o spawner do MVP1 coloca no caminho. */
+export type ObstacleKind = 'hard' | 'soft' | 'breakable' | 'bird'
+
 /**
  * Efeito de um contato no gameplay. Cada entidade devolve isto; a cena aplica.
  * 'none' = encostou mas nada muda; 'reflect' = quique espelhado; 'damp' = dreno;
@@ -34,6 +37,19 @@ export interface Contact {
   point: Vec2
   /** Intensidade normalizada 0..1 para feedback (som, shake, partículas). */
   strength: number
+}
+
+export interface ObstacleSpawn {
+  kind: ObstacleKind
+  /** Centro do obstáculo no mundo. */
+  x: number
+  y: number
+  width: number
+  height: number
+  /** Para birds: sentido da travessia (-1 esquerda, +1 direita). */
+  direction: 1 | -1
+  /** Variação visual determinística (0..1). */
+  variation: number
 }
 
 /** Estado visível da run consumido pelas entidades interativas. */

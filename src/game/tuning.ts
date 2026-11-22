@@ -60,24 +60,52 @@ export const TUNING = {
   },
 
   obstacle: {
-    /** 1 evento relevante a cada ~10 s de subida no início. [TESTE] */
-    eventSpacingSeconds: 10,
-    /** Crescimento da densidade por faixa de altitude. [TESTE] */
-    densityGrowthPerKm: 0.25,
-    /** Altura mínima livre acima da bola ao spawnar. */
-    safeGap: 260,
     hardWidth: 150,
     hardHeight: 18,
     softWidth: 190,
     softHeight: 22,
+    breakableWidth: 132,
+    breakableHeight: 26,
     /** Velocidade mínima para romper o breakable. [TESTE] */
     breakSpeed: 1400,
-    /** Velocidade perdida no soft. */
+    /** Fração de velocidade perdida no soft. */
     softDamp: 0.45,
-    birdSpeed: 220,
+    birdWidth: 46,
+    birdHeight: 26,
+    birdRadius: 14,
+    birdSpeed: 240,
     flockSize: 4,
     flockDurationMs: 3600,
     birdDeflect: 260,
+    /** Evita múltiplos contatos do mesmo obstáculo no mesmo toque. */
+    contactCooldownMs: 120,
+    /** Obstáculos abaixo desta margem da câmera são descartados. */
+    despawnMargin: 260,
+  },
+
+  spawn: {
+    /** Primeiro evento só depois de o jogador começar a subir. */
+    firstAtMeters: 28,
+    /** Distância entre eventos no início e no fim da curva (densidade cresce). */
+    startStepMeters: 190,
+    minStepMeters: 115,
+    stepAtMeters: 1200,
+    /** Obstáculo nasce acima do topo da câmera. */
+    aboveTop: 150,
+    jitterY: 120,
+    /** Corredor livre em torno do x da bola ao escolher a posição. */
+    safeXGap: 110,
+    edgeMargin: 26,
+    maxPerUpdate: 3,
+    /** Faixa (dentro da tela) onde o bando entra. */
+    birdBandTop: 140,
+    birdBandHeight: 180,
+    /** Pesos por faixa de altitude: [hard, soft, breakable, bird]. */
+    mix: [
+      { maxMeters: 120, weights: [55, 30, 15, 0] },
+      { maxMeters: 300, weights: [40, 25, 20, 15] },
+      { maxMeters: 1_000_000, weights: [30, 20, 25, 25] },
+    ],
   },
 
   collect: {

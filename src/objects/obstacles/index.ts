@@ -1,0 +1,28 @@
+import type Phaser from 'phaser'
+import type { ObstacleKind, ObstacleSpawn } from '../../game/contracts'
+import { createBirds } from './birds'
+import { createBreakable } from './breakable'
+import { createHard } from './hard'
+import { createSoft } from './soft'
+import type { ObstacleFactory, ObstacleInstance } from './types'
+
+/**
+ * Registro central de obstáculos. Cada lote entrega sua factory; a cena só
+ * conhece este mapa. Kinds ainda sem fábrica são ignorados com segurança.
+ */
+const FACTORIES: Partial<Record<ObstacleKind, ObstacleFactory>> = {
+  hard: createHard,
+  soft: createSoft,
+  breakable: createBreakable,
+  bird: createBirds,
+}
+
+export function createObstacle(
+  scene: Phaser.Scene,
+  spec: ObstacleSpawn,
+): ObstacleInstance | null {
+  const factory = FACTORIES[spec.kind]
+  return factory ? factory(scene, spec) : null
+}
+
+export type { ObstacleContact, ObstacleInstance, ObstacleSpawn } from './types'

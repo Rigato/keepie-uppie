@@ -45,7 +45,7 @@ O workflow também pode ser disparado manualmente (`workflow_dispatch`). Se o ce
 
 ## Estado do projeto
 
-**Fase F1 (core loop):** chute por ponto de toque (só em queda), força por velocidade de encontro com piso, whiff neutro, câmera-catraca, paredes, morte e retry, altitude em metros e melhor score local. A bola de demonstração da F0 deu lugar ao loop real. Obstáculos, interativos e powerups entram nas fases seguintes.
+**Fase F2 (obstáculos):** hard, soft, breakable e birds/bando com spawner procedural por altitude; nenhum contato mata (só a queda). O core loop da F1 segue: chute só em queda, catraca, morte e retry, altitude e melhor score local. Interativos e powerups entram nas fases seguintes.
 
 ## Documentação
 
