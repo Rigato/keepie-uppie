@@ -1,0 +1,24 @@
+# Dependências
+node_modules/
+.pnpm-store/
+
+# Build
+dist/
+.vite/
+coverage/
+
+# Testes
+test-results/
+playwright-report/
+blob-report/
+
+# Editor / SO
+.DS_Store
+*.local
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Logs
+*.log
+npm-debug.log*
