@@ -18,6 +18,7 @@ export const PALETTE = {
   spring: 0xff8fab,
   magnet: 0x9b8cff,
   aimed: 0xffb86b,
+  fever: 0xff9f43,
 } as const
 
 export const CSS_PALETTE = {
@@ -26,4 +27,5 @@ export const CSS_PALETTE = {
   accent: '#4de2c5',
   ball: '#ffd166',
   danger: '#ff5d5d',
+  fever: '#ff9f43',
 } as const

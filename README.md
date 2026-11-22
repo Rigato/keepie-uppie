@@ -47,7 +47,7 @@ O workflow também pode ser disparado manualmente (`workflow_dispatch`). Se o ce
 
 ## Estado do projeto
 
-**Fase F4 (powerups):** Magnet (15 s, só moedas, com aura e chip de estado) e Aimed Shot (arma sem prazo, mira de 2 s com arrasto, timeout com força média). Interativos, obstáculos e core loop seguem das fases anteriores. Perfect, streak e febre entram em F5.
+**Fase F5 (skill):** Perfect Touch com força no teto e celebração, streak `NICE → GREAT → ON FIRE` e febre de 8 s com moedas x2. Magnet, Aimed Shot, interativos, obstáculos e core loop seguem das fases anteriores. Polimento, áudio completo e compatibilidade entram em F6.
 
 ## Documentação
 

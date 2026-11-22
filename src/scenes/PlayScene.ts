@@ -5,6 +5,7 @@ import { resolveAim } from '../core/aim'
 import { InteractiveSpawner } from '../core/interactive-spawner'
 import { computeKick, isInsideBall } from '../core/kick'
 import { ObstacleSpawner } from '../core/spawner'
+import { StreakTracker, labelForCount, type StreakLabel } from '../core/streak'
 import { audio } from '../fx/audio'
 import { BUILD_LABEL } from '../game/build-info'
 import { FONT_MONO, FONT_SANS } from '../game/config'
@@ -61,6 +62,12 @@ export class PlayScene extends Phaser.Scene {
   private aiming = false
   private aimEndsAt = 0
   private aimPointer = { x: 0, y: 0 }
+  private streak = new StreakTracker()
+  private feverUntil = 0
+  private feverAura!: Phaser.GameObjects.Arc
+  private streakText!: Phaser.GameObjects.Text
+  private feverText!: Phaser.GameObjects.Text
+  private feverHudAt = 0
 
   constructor() {
     super('Play')
@@ -89,6 +96,9 @@ export class PlayScene extends Phaser.Scene {
     this.magnetHudAt = 0
     this.aiming = false
     this.aimEndsAt = 0
+    this.streak.reset()
+    this.feverUntil = 0
+    this.feverHudAt = 0
     DEBUG_STATE.powerup = '—'
 
     this.cameras.main.setScroll(0, 0)
@@ -119,6 +129,34 @@ export class PlayScene extends Phaser.Scene {
       .circle(0, 0, TUNING.powerup.magnetRadius, PALETTE.magnet, 0.06)
       .setStrokeStyle(2, PALETTE.magnet, 0.22)
       .setDepth(9)
+      .setVisible(false)
+
+    this.feverAura = this.add
+      .circle(0, 0, 70, PALETTE.fever, 0.07)
+      .setStrokeStyle(2, PALETTE.fever, 0.18)
+      .setDepth(8)
+      .setVisible(false)
+
+    this.streakText = this.add
+      .text(width / 2, 52, '', {
+        fontFamily: FONT_MONO,
+        fontSize: '12px',
+        color: CSS_PALETTE.inkDim,
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(100)
+
+    this.feverText = this.add
+      .text(width / 2, 78, '', {
+        fontFamily: FONT_MONO,
+        fontSize: '12px',
+        color: CSS_PALETTE.fever,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(100)
       .setVisible(false)
 
     this.hint = this.add
@@ -181,6 +219,7 @@ export class PlayScene extends Phaser.Scene {
     this.updateObstacles(dt)
     this.updateInteractives(dt)
     this.updateMagnet(dt)
+    this.updateFever()
     this.drawGrid()
     this.syncView()
   }
@@ -353,14 +392,14 @@ export class PlayScene extends Phaser.Scene {
   private applyInteractiveContact(item: InteractiveInstance, contact: InteractiveContact): void {
     switch (contact.result) {
       case 'collect': {
-        const value = contact.coins ?? TUNING.collect.coinValue
-        this.addCoins(value)
+        const fever = this.isFever()
+        const value = this.addCoins(contact.coins ?? TUNING.collect.coinValue)
         audio.play('coin')
         gameEvents.emit('coin', {
           x: contact.point.x,
           y: contact.point.y,
           value,
-          fever: false,
+          fever,
         })
         break
       }
@@ -408,11 +447,14 @@ export class PlayScene extends Phaser.Scene {
     item.react(contact)
   }
 
-  private addCoins(amount: number): void {
-    if (!Number.isFinite(amount) || amount <= 0) return
-    this.coins += amount
+  private addCoins(amount: number): number {
+    if (!Number.isFinite(amount) || amount <= 0) return 0
+    const multiplier = this.isFever() ? TUNING.streak.coinMultiplier : 1
+    const value = Math.max(1, Math.round(amount * multiplier))
+    this.coins += value
     this.hud.setCoins(this.coins)
     DEBUG_STATE.coins = this.coins
+    return value
   }
 
   private updateMagnet(dt: number): void {
@@ -516,6 +558,7 @@ export class PlayScene extends Phaser.Scene {
     this.ball.vy = shot.dir.y * shot.speed
     this.lastArc((2 * shot.speed) / TUNING.physics.gravity, shot.ratio)
     this.markStarted()
+    this.registerCleanKick(false)
 
     audio.play('perfect', { pitch: 0.9, volume: 0.9 })
     this.cameras.main.shake(90, 0.005)
@@ -547,6 +590,7 @@ export class PlayScene extends Phaser.Scene {
     DEBUG_STATE.ballVy = this.ball.vy
     DEBUG_STATE.meters = this.meters
     DEBUG_STATE.coins = this.coins
+    DEBUG_STATE.streak = this.streak.count
     DEBUG_STATE.powerup = this.aiming
       ? 'aiming'
       : this.magnetEndsAt > this.time.now
@@ -565,7 +609,10 @@ export class PlayScene extends Phaser.Scene {
 
     const result = computeKick(this.ball, { x, y })
     if (result.kind === 'whiff') {
-      audio.play('whiff')
+      if (result.reason === 'miss') {
+        audio.play('whiff')
+        this.registerWhiff()
+      }
       return
     }
 
@@ -574,6 +621,7 @@ export class PlayScene extends Phaser.Scene {
     this.lastArc(result.arcTime, result.power)
 
     if (!this.started) this.markStarted()
+    this.registerCleanKick(result.perfect)
 
     audio.play(result.perfect ? 'perfect' : 'kick', { pitch: result.perfect ? 1 : 0.95 + result.power * 0.1 })
     this.cameras.main.shake(60, TUNING.fx.shakeKick)
@@ -592,6 +640,121 @@ export class PlayScene extends Phaser.Scene {
     DEBUG_STATE.lastKickPower = power * 100
   }
 
+  private registerCleanKick(perfect: boolean): void {
+    const kick = this.streak.registerKick()
+    this.updateStreakHud()
+
+    if (kick.label) {
+      this.popLabel(kick.label, this.labelColor(kick.label), kick.label === 'ON FIRE', 92)
+      audio.play(kick.label === 'ON FIRE' ? 'fever' : 'streakUp')
+    }
+    if (kick.feverStarted) this.startFever()
+    if (perfect) this.showPerfect()
+  }
+
+  private registerWhiff(): void {
+    if (this.streak.count === 0) return
+    this.streak.registerWhiff()
+    this.updateStreakHud()
+  }
+
+  private updateStreakHud(): void {
+    const count = this.streak.count
+    if (count === 0) {
+      this.streakText.setText('')
+      return
+    }
+    const tier = labelForCount(count)
+    this.streakText.setColor(tier ? this.labelColor(tier) : CSS_PALETTE.inkDim)
+    this.streakText.setText(tier ? `STREAK ${count} · ${tier}` : `STREAK ${count}`)
+  }
+
+  private labelColor(label: StreakLabel): string {
+    if (label === 'ON FIRE') return CSS_PALETTE.fever
+    if (label === 'GREAT') return CSS_PALETTE.ball
+    return CSS_PALETTE.accent
+  }
+
+  private showPerfect(): void {
+    this.popLabel('PERFECT', CSS_PALETTE.accent, false, 56)
+    this.cameras.main.flash(70, 232, 238, 252)
+    this.burst(this.ball.x, this.ball.y, PALETTE.accent, 8)
+  }
+
+  private startFever(): void {
+    this.feverUntil = this.time.now + TUNING.streak.feverMs
+    this.feverHudAt = 0
+    this.feverAura.setVisible(true)
+    this.feverText.setVisible(true)
+    this.popLabel('FEVER!', CSS_PALETTE.fever, true, 132)
+    this.cameras.main.flash(120, 255, 159, 67)
+    audio.play('fever')
+  }
+
+  private updateFever(): void {
+    const now = this.time.now
+
+    if (this.feverUntil > now) {
+      this.feverAura.setVisible(true).setPosition(this.ball.x, this.ball.y)
+      if (now >= this.feverHudAt) {
+        this.feverHudAt = now + 100
+        const seconds = Math.ceil((this.feverUntil - now) / 1000)
+        this.feverText.setText(`FEVER x${TUNING.streak.coinMultiplier} ${seconds}s`)
+      }
+      return
+    }
+
+    if (this.feverUntil !== 0) {
+      this.feverUntil = 0
+      this.feverAura.setVisible(false)
+      this.feverText.setVisible(false)
+    }
+  }
+
+  private isFever(): boolean {
+    return this.feverUntil > this.time.now
+  }
+
+  private popLabel(text: string, color: string, big: boolean, offsetY: number): void {
+    const label = this.add
+      .text(this.ball.x, this.ball.y - offsetY, text, {
+        fontFamily: FONT_SANS,
+        fontSize: big ? '30px' : '20px',
+        color,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setLetterSpacing(4)
+      .setDepth(110)
+
+    this.tweens.add({
+      targets: label,
+      y: label.y - 70,
+      alpha: 0,
+      scale: 1.12,
+      duration: 900,
+      ease: 'Quad.out',
+      onComplete: () => label.destroy(),
+    })
+  }
+
+  private burst(x: number, y: number, color: number, count: number): void {
+    for (let i = 0; i < count; i += 1) {
+      const angle = (i / count) * Math.PI * 2
+      const piece = this.add.circle(x, y, 3, color, 0.9).setDepth(110)
+      this.tweens.add({
+        targets: piece,
+        x: x + Math.cos(angle) * 74,
+        y: y + Math.sin(angle) * 74,
+        alpha: 0,
+        scale: 0.4,
+        duration: 430,
+        ease: 'Quad.out',
+        onComplete: () => piece.destroy(),
+      })
+    }
+  }
+
   private die(): void {
     if (this.dead) return
     this.dead = true
@@ -602,6 +765,10 @@ export class PlayScene extends Phaser.Scene {
     this.powerupHud.setAimed(false)
     this.powerupHud.setMagnet(false, 0, TUNING.powerup.magnetDurationMs)
     this.magnetAura.setVisible(false)
+    this.feverUntil = 0
+    this.feverAura.setVisible(false)
+    this.feverText.setVisible(false)
+    this.streakText.setVisible(false)
     audio.play('death')
     this.cameras.main.shake(180, 0.006)
     const save = this.registry.get('save') as SaveV1

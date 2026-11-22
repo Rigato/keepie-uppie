@@ -33,7 +33,7 @@ export const TUNING = {
     /** Componente lateral máxima no toque na borda. */
     maxLateral: 0.75,
     /** Janela central para o Perfect Touch, em fração do raio. [TESTE] */
-    perfectWindow: 0.25,
+    perfectWindow: 0.16,
     /** Folga invisível do alvo de toque, em unidades de mundo (dedo grande). */
     touchPadding: 6,
   },
