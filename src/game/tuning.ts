@@ -6,6 +6,7 @@ export const TUNING = {
   world: {
     width: 540,
     height: 1080,
+    wallWidth: 14,
   },
 
   ball: {
@@ -33,6 +34,8 @@ export const TUNING = {
     maxLateral: 0.75,
     /** Janela central para o Perfect Touch, em fração do raio. [TESTE] */
     perfectWindow: 0.25,
+    /** Folga invisível do alvo de toque, em unidades de mundo (dedo grande). */
+    touchPadding: 6,
   },
 
   camera: {

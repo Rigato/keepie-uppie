@@ -47,7 +47,7 @@ export class PlayScene extends Phaser.Scene {
     this.hud.setCoins(0)
 
     this.add
-      .text(width / 2, height - 32, BUILD_LABEL, {
+      .text(width / 2, 26, BUILD_LABEL, {
         fontFamily: FONT_SANS,
         fontSize: '11px',
         color: CSS_PALETTE.inkDim,

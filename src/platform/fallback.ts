@@ -83,6 +83,7 @@ export class FallbackAdapter implements PlatformService {
   readonly storage: PlatformStorage
 
   private ready = false
+  private readySent = false
   private pauseCbs: Array<() => void> = []
   private resumeCbs: Array<() => void> = []
 
@@ -102,6 +103,8 @@ export class FallbackAdapter implements PlatformService {
 
   markGameReady(): void {
     if (!this.ready) console.warn('[platform] game_ready antes do init')
+    if (this.readySent) return
+    this.readySent = true
     console.info('[platform] ready (fallback)')
   }
 

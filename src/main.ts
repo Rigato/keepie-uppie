@@ -12,6 +12,8 @@ import { BootScene, TitleScene } from './scenes/TitleScene'
 async function boot(): Promise<void> {
   const params = new URLSearchParams(window.location.search)
   const debug = params.get('debug') === '1'
+  const slowParam = Number(params.get('slow') ?? '1')
+  const timeScale = Number.isFinite(slowParam) ? Math.min(2, Math.max(0.1, slowParam)) : 1
   DEBUG_STATE.enabled = debug
 
   const platform = await createPlatform()
@@ -30,6 +32,7 @@ async function boot(): Promise<void> {
       instance.registry.set('saveStore', saveStore)
       instance.registry.set('save', save)
       instance.registry.set('debug', debug)
+      instance.registry.set('timeScale', timeScale)
     }),
   )
 
@@ -37,8 +40,8 @@ async function boot(): Promise<void> {
   platform.onResume(() => game.loop.wake())
 
   const unlock = (): void => void audio.unlock()
-  window.addEventListener('pointerdown', unlock, { once: true })
-  window.addEventListener('keydown', unlock, { once: true })
+  window.addEventListener('pointerdown', unlock, { once: true, capture: true })
+  window.addEventListener('keydown', unlock, { once: true, capture: true })
 
   if (debug) {
     // Acesso manual pelo console/DevTools durante o teste.

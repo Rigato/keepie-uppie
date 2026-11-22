@@ -4,7 +4,7 @@ import { CSS_PALETTE, PALETTE } from '../game/palette'
 import { TUNING } from '../game/tuning'
 import { formatMeters } from '../platform/storage'
 
-/** HUD em unidades de mundo. Sem dependência de estado: a cena empurra valores. */
+/** HUD em unidades de mundo, preso à tela (scrollFactor 0). */
 export class Hud {
   private readonly altitudeValue: Phaser.GameObjects.Text
   private readonly coinValue: Phaser.GameObjects.Text
@@ -20,6 +20,8 @@ export class Hud {
         color: CSS_PALETTE.inkDim,
       })
       .setLetterSpacing(3)
+      .setScrollFactor(0)
+      .setDepth(100)
 
     this.altitudeValue = scene.add
       .text(m - 2, m + 10, formatMeters(0), {
@@ -29,6 +31,8 @@ export class Hud {
         fontStyle: 'bold',
       })
       .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(100)
 
     this.bestLabel = scene.add
       .text(m, m + 62, `BEST ${formatMeters(bestMeters)}`, {
@@ -37,12 +41,16 @@ export class Hud {
         color: CSS_PALETTE.inkDim,
       })
       .setLetterSpacing(2)
+      .setScrollFactor(0)
+      .setDepth(100)
 
     const right = TUNING.world.width - m
 
     scene.add
       .circle(right - 74, m + 8, 9, PALETTE.coin)
       .setStrokeStyle(2, 0xffffff, 0.18)
+      .setScrollFactor(0)
+      .setDepth(100)
 
     this.coinValue = scene.add
       .text(right, m - 12, '0', {
@@ -52,6 +60,8 @@ export class Hud {
         fontStyle: 'bold',
       })
       .setOrigin(1, 0)
+      .setScrollFactor(0)
+      .setDepth(100)
   }
 
   setMeters(meters: number): void {

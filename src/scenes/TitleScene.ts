@@ -118,6 +118,7 @@ export class TitleScene extends Phaser.Scene {
   private startRun(): void {
     if (this.starting) return
     this.starting = true
+    void audio.unlock()
     audio.play('ui')
     this.scene.start('Play')
   }
