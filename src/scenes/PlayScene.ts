@@ -10,6 +10,7 @@ import { audio } from '../fx/audio'
 import { BUILD_LABEL } from '../game/build-info'
 import { FONT_MONO, FONT_SANS } from '../game/config'
 import { DEBUG_STATE } from '../game/debug-state'
+import { FEATURES } from '../game/features'
 import { gameEvents } from '../game/events'
 import type { BallLike } from '../game/contracts'
 import { CSS_PALETTE, PALETTE } from '../game/palette'
@@ -128,19 +129,21 @@ export class PlayScene extends Phaser.Scene {
     const shine = this.add.circle(-10, -10, 8, 0xffffff, 0.32)
     this.ballView.add([glow, body, rim, shine])
 
-    // Área de chute: anel de pontos que aparece só quando a bola pode ser chutada.
+    // Área de chute: anel de pontos opcional (tuning com `?ring=1`).
     const kickDots: Phaser.GameObjects.Arc[] = []
-    for (let i = 0; i < 10; i += 1) {
-      const angle = (i / 10) * Math.PI * 2
-      kickDots.push(
-        this.add.circle(
-          Math.cos(angle) * TUNING.kick.ringRadius,
-          Math.sin(angle) * TUNING.kick.ringRadius,
-          3,
-          PALETTE.accent,
-          0.6,
-        ),
-      )
+    if (FEATURES.kickRing) {
+      for (let i = 0; i < 10; i += 1) {
+        const angle = (i / 10) * Math.PI * 2
+        kickDots.push(
+          this.add.circle(
+            Math.cos(angle) * TUNING.kick.ringRadius,
+            Math.sin(angle) * TUNING.kick.ringRadius,
+            3,
+            PALETTE.accent,
+            0.6,
+          ),
+        )
+      }
     }
     this.kickRing = this.add.container(0, 0, kickDots).setDepth(9).setVisible(false)
 
@@ -789,6 +792,8 @@ export class PlayScene extends Phaser.Scene {
   }
 
   private updateKickRing(): void {
+    if (!FEATURES.kickRing) return
+
     const kickable = this.ball.vy >= -TUNING.kick.apexTolerance
     if (!kickable) {
       this.kickRing.setVisible(false)

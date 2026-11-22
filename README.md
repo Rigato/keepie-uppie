@@ -51,7 +51,7 @@ O workflow também pode ser disparado manualmente (`workflow_dispatch`). Se o ce
 
 ## Estado do projeto
 
-**MVP01 completo (F7):** core loop, obstáculos, interativos, Magnet, Aimed Shot, perfect/streak/febre, pausa/mute, save local e pacote validado para portais. Jogável em https://rigato.github.io/keepie-uppie/. O toque usa um **anel generoso** desde a `0.1.1` (ver `docs/release/fix1-toque-generoso.md`). O próximo passo é o **playtest** — ver `docs/playtest-mvp01.md` — e só depois a publicação nos portais.
+**MVP01 completo (F7):** core loop, obstáculos, interativos, Magnet, Aimed Shot, perfect/streak/febre, pausa/mute, save local e pacote validado para portais. Jogável em https://rigato.github.io/keepie-uppie/. O alvo de toque é generoso (raio 60) desde a `0.1.2`; o anel de pontos é ferramenta de tuning (`?ring=1`) e fica oculto na build normal. O próximo passo é o **playtest** — ver `docs/playtest-mvp01.md` — e só depois a publicação nos portais.
 
 ## Documentação
 

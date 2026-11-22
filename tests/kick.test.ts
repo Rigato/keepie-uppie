@@ -43,10 +43,21 @@ describe('computeKick', () => {
     expect(result).toMatchObject({ kind: 'whiff', reason: 'miss' })
   })
 
-  it('hitbox generosa: toque a 100 do centro ainda chuta, com ângulo máximo', () => {
-    const result = computeKick(ball({ vy: 900 }), { x: 270 + 100, y: 500 })
+  it('hitbox generosa: toque na borda do alvo ainda chuta, com ângulo máximo', () => {
+    const result = computeKick(ball({ vy: 900 }), {
+      x: 270 + TUNING.kick.touchRadius,
+      y: 500,
+    })
     expect(result.kind).toBe('kick')
     expect(result.offset).toBe(1)
+  })
+
+  it('fora do alvo generoso não chuta', () => {
+    const result = computeKick(ball({ vy: 900 }), {
+      x: 270 + TUNING.kick.touchRadius + 10,
+      y: 500,
+    })
+    expect(result).toMatchObject({ kind: 'whiff', reason: 'miss' })
   })
 
   it('aceita toque na borda exata do círculo', () => {

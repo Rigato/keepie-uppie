@@ -39,11 +39,11 @@ export const TUNING = {
      * toca dentro do anel; o ângulo usa essa mesma área, então centro = reto,
      * borda do anel = ângulo máximo.
      */
-    touchRadius: 100,
+    touchRadius: 60,
     /** Tolera toque perto do ápice (vy levemente negativa) em vez de exigir queda pura. */
     apexTolerance: 120,
-    /** Anel (de pontos) que comunica a área de chute enquanto a bola cai. */
-    ringRadius: 100,
+    /** Anel (de pontos) que comunica a área de chute; ferramenta de tuning, oculta por padrão. */
+    ringRadius: 60,
   },
 
   camera: {

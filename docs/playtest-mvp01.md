@@ -1,16 +1,17 @@
 # Playtest — Keepie-Uppie MVP01
 
-**Build:** `0.1.1-mvp1` · F7 · https://rigato.github.io/keepie-uppie/
+**Build:** `0.1.2-mvp1` · F7 · https://rigato.github.io/keepie-uppie/
 **Objetivo:** responder as 6 perguntas do plano de design. O playtest decide o que vem depois; o documento não.
 
 ## Antes de começar
 
 - **10–15 minutos**, som ligado, celular na mão (é o alvo principal). Se possível, repita no desktop.
 - **Três runs livres** antes de analisar: a primeira é para aprender, não para julgar.
-- **Toque dentro do anel de pontos** ao redor da bola; ele só aparece quando ela pode ser chutada (na queda). Não tente acertar o círculo exato.
+- **Toque perto da bola** (o alvo é generoso, ~2× o raio visual). O anel de pontos **não aparece** na build normal; `?ring=1` mostra a área de chute para tuning.
 - Não há tutorial de texto: a run é o tutorial. "TAP THE BALL" é a única instrução.
 - `?resetSave=1` zera melhor score e moedas.
 - `?debug=1` mostra chute (arco/força), posição da bola, streak, powerup e um botão de reset do save. Use só se precisar de número; o painel cobre parte da tela.
+- `?ring=1` liga o anel de pontos da área de chute (tuning; oculto por padrão).
 - **Não são bugs conhecidos:** desktop estreito (portrait-first), arte geométrica de placeholder, ausência de música, reiniciar pela pausa descartar a run atual.
 
 ## Roteiro rápido
