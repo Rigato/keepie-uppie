@@ -99,13 +99,13 @@ export class TitleScene extends Phaser.Scene {
       .setLetterSpacing(3)
 
     this.add
-      .text(width / 2, height - 32, BUILD_LABEL, {
+      .text(width / 2, 26, BUILD_LABEL, {
         fontFamily: FONT_SANS,
         fontSize: '11px',
         color: CSS_PALETTE.inkDim,
       })
       .setOrigin(0.5)
-      .setAlpha(0.55)
+      .setAlpha(0.5)
 
     const platform = this.registry.get('platform') as PlatformService
     platform.markGameReady()
