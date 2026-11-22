@@ -8,7 +8,7 @@
 | **URL** | https://rigato.github.io/keepie-uppie/ |
 | **Pacote** | `release/keepie-uppie-v0.1.1-mvp1.zip` · 344,5 KiB · SHA-256 `7fcc3485ad0d1daba6aadd0d52dd4902e9ccbbd7d97387838faa16f1ccfb9814` |
 
-> **Ajuste seguinte:** a `0.1.2` reduziu o alvo de 100 para 60 u e ocultou o anel; ver [`fix2-alvo-60.md`](fix2-alvo-60.md).
+> **Ajuste seguinte:** a `0.1.3` reduziu os elementos em 20%, estreitou o hard e deu folga à câmera; ver [`fix3-elementos-camera.md`](fix3-elementos-camera.md).
 
 ## O problema
 

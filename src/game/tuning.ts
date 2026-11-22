@@ -47,10 +47,15 @@ export const TUNING = {
   },
 
   camera: {
-    /** Altura do gatilho da catraca, em fração da tela. */
-    ratchetAt: 0.4,
-    /** Velocidade de acompanhamento (lerp por segundo). */
-    followSpeed: 8,
+    /**
+     * Linha de espera da catraca: a bola sobe livre até esta fração da tela
+     * (a partir do topo) antes de a câmera começar a segui-la.
+     */
+    ratchetAt: 0.2,
+    /** Velocidade de acompanhamento (lerp por segundo); menor = mais atraso. */
+    followSpeed: 6,
+    /** A bola nunca sai acima desta fração do topo, mesmo com o atraso. */
+    maxTop: 0.14,
   },
 
   run: {
@@ -68,19 +73,20 @@ export const TUNING = {
   },
 
   obstacle: {
-    hardWidth: 150,
-    hardHeight: 18,
-    softWidth: 190,
-    softHeight: 22,
-    breakableWidth: 132,
-    breakableHeight: 26,
+    /** Hard mais estreito que os demais: refletir para baixo é punitivo. */
+    hardWidth: 100,
+    hardHeight: 14,
+    softWidth: 152,
+    softHeight: 18,
+    breakableWidth: 106,
+    breakableHeight: 21,
     /** Velocidade mínima para romper o breakable. [TESTE] */
     breakSpeed: 1400,
     /** Fração de velocidade perdida no soft. */
     softDamp: 0.45,
-    birdWidth: 46,
-    birdHeight: 26,
-    birdRadius: 14,
+    birdWidth: 37,
+    birdHeight: 21,
+    birdRadius: 11,
     birdSpeed: 240,
     flockSize: 4,
     flockDurationMs: 3600,
@@ -117,18 +123,18 @@ export const TUNING = {
   },
 
   collect: {
-    coinRadius: 16,
+    coinRadius: 13,
     coinValue: 1,
-    ringRadius: 62,
-    ringThickness: 10,
+    ringRadius: 50,
+    ringThickness: 8,
     /** Fração do raio da argola que conta como "passou por dentro". */
     ringPassRatio: 0.55,
     ringCoinBurst: 8,
-    springWidth: 88,
-    springHeight: 22,
+    springWidth: 70,
+    springHeight: 18,
     springLaunchSpeed: 2650,
     springCooldownMs: 350,
-    pickupRadius: 26,
+    pickupRadius: 21,
   },
 
   interactive: {
@@ -164,8 +170,8 @@ export const TUNING = {
     aimMaxSpeed: 2650,
     /** Duração do Magnet. [TESTE] */
     magnetDurationMs: 15000,
-    /** Raio de puxão: ~1/3 da largura. [TESTE] */
-    magnetRadius: 180,
+    /** Raio de puxão (−20% da calibração anterior); a aura acompanha. [TESTE] */
+    magnetRadius: 144,
     magnetPullSpeed: 620,
   },
 
@@ -177,6 +183,8 @@ export const TUNING = {
     /** Duração da febre. [TESTE] */
     feverMs: 8000,
     coinMultiplier: 2,
+    /** Raio visual da aura de febre (acompanha a redução dos elementos). */
+    feverAuraRadius: 56,
   },
 
   fx: {

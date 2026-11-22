@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { metersFromTop, ratchetCameraY } from '../core/camera'
+import { metersFromTop, ratchetCameraY, smoothCameraY } from '../core/camera'
 import { reflectVelocity } from '../core/collision'
 import { resolveAim } from '../core/aim'
 import { InteractiveSpawner } from '../core/interactive-spawner'
@@ -161,7 +161,7 @@ export class PlayScene extends Phaser.Scene {
       .setVisible(false)
 
     this.feverAura = this.add
-      .circle(0, 0, 70, PALETTE.fever, 0.07)
+      .circle(0, 0, TUNING.streak.feverAuraRadius, PALETTE.fever, 0.07)
       .setStrokeStyle(2, PALETTE.fever, 0.18)
       .setDepth(8)
       .setVisible(false)
@@ -280,7 +280,7 @@ export class PlayScene extends Phaser.Scene {
     }
 
     this.stepPhysics(dt)
-    this.updateCamera()
+    this.updateCamera(dt)
     this.updateAltitude()
     this.updateObstacles(dt)
     this.updateInteractives(dt)
@@ -318,9 +318,17 @@ export class PlayScene extends Phaser.Scene {
     if (b.y - r > this.cameraY + TUNING.world.height) this.die()
   }
 
-  private updateCamera(): void {
+  private updateCamera(dt: number): void {
     if (!this.started) return
-    this.cameraY = ratchetCameraY(this.cameraY, this.ball.y, TUNING.world.height)
+
+    const height = TUNING.world.height
+    const target = ratchetCameraY(this.cameraY, this.ball.y, height)
+    this.cameraY = smoothCameraY(this.cameraY, target, dt, TUNING.camera.followSpeed)
+
+    // Atrás da bola por um instante, mas nunca deixa a bola sair pelo topo.
+    const maxTop = this.ball.y - height * TUNING.camera.maxTop
+    this.cameraY = Math.min(this.cameraY, maxTop)
+
     this.cameras.main.setScroll(0, this.cameraY)
   }
 

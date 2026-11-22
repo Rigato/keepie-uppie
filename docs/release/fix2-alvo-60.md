@@ -7,6 +7,8 @@
 | **Pacote** | `release/keepie-uppie-v0.1.2-mvp1.zip` · 344,6 KiB · SHA-256 `6f871b19cf6fc589dfabd02b4bd7b11a8e625622b8265455582b4ff506e14789` |
 | **URL** | https://rigato.github.io/keepie-uppie/ |
 
+> **Ajuste seguinte:** a `0.1.3` reduziu os elementos em 20%, estreitou o hard e deu folga à câmera; ver [`fix3-elementos-camera.md`](fix3-elementos-camera.md).
+
 ## O que mudou
 
 - **Raio do alvo/mira: 100 → 60 u** (−40%). O alvo agora tem ~87 px de diâmetro num celular de 390 px, contra 144 px antes.

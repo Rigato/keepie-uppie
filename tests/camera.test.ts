@@ -17,7 +17,7 @@ describe('câmera-catraca', () => {
   const H = TUNING.world.height
 
   it('sobe quando a bola passa do gatilho', () => {
-    const scroll = ratchetCameraY(0, 300, H)
+    const scroll = ratchetCameraY(0, 150, H)
     expect(scroll).toBeLessThan(0)
   })
 
@@ -27,8 +27,8 @@ describe('câmera-catraca', () => {
   })
 
   it('acompanha respeitando o gatilho', () => {
-    const scroll = ratchetCameraY(-1000, -600, H)
-    expect(scroll).toBeCloseTo(-600 - H * TUNING.camera.ratchetAt, 5)
+    const scroll = ratchetCameraY(-1000, -1200, H)
+    expect(scroll).toBeCloseTo(-1200 - H * TUNING.camera.ratchetAt, 5)
   })
 
   it('suavização não ultrapassa o alvo e nunca desce', () => {
