@@ -24,6 +24,17 @@ export type EntityKind =
 /** Obstáculos que o spawner do MVP1 coloca no caminho. */
 export type ObstacleKind = 'hard' | 'soft' | 'breakable' | 'bird'
 
+/** Interativos do MVP1. */
+export type InteractiveKind = 'coin' | 'ring' | 'spring' | 'pickupMagnet' | 'pickupAimed'
+
+export interface InteractiveSpawn {
+  kind: InteractiveKind
+  x: number
+  y: number
+  /** Variação visual determinística (0..1). */
+  variation: number
+}
+
 /**
  * Efeito de um contato no gameplay. Cada entidade devolve isto; a cena aplica.
  * 'none' = encostou mas nada muda; 'reflect' = quique espelhado; 'damp' = dreno;

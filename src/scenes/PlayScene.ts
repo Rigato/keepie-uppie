@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { metersFromTop, ratchetCameraY } from '../core/camera'
 import { reflectVelocity } from '../core/collision'
+import { InteractiveSpawner } from '../core/interactive-spawner'
 import { computeKick } from '../core/kick'
 import { ObstacleSpawner } from '../core/spawner'
 import { audio } from '../fx/audio'
@@ -12,6 +13,11 @@ import type { BallLike } from '../game/contracts'
 import { CSS_PALETTE, PALETTE } from '../game/palette'
 import { TUNING } from '../game/tuning'
 import { createObstacle, type ObstacleContact, type ObstacleInstance } from '../objects/obstacles'
+import {
+  createInteractive,
+  type InteractiveContact,
+  type InteractiveInstance,
+} from '../objects/interactives'
 import { formatMeters, type SaveStore, type SaveV1 } from '../platform/storage'
 import { Hud } from '../ui/hud'
 import { drawBackdrop } from '../ui/backdrop'
@@ -41,6 +47,9 @@ export class PlayScene extends Phaser.Scene {
   private wasBest = false
   private spawner = new ObstacleSpawner()
   private obstacles: ObstacleInstance[] = []
+  private interactiveSpawner = new InteractiveSpawner()
+  private interactives: InteractiveInstance[] = []
+  private armedPowerup: 'magnet' | 'aimed' | null = null
 
   constructor() {
     super('Play')
@@ -62,6 +71,10 @@ export class PlayScene extends Phaser.Scene {
     this.lastWholeMeters = -1
     this.spawner.reset((Math.random() * 0xffffffff) >>> 0)
     this.obstacles = []
+    this.interactiveSpawner.reset((Math.random() * 0xffffffff) >>> 0)
+    this.interactives = []
+    this.armedPowerup = null
+    DEBUG_STATE.powerup = '—'
 
     this.cameras.main.setScroll(0, 0)
 
@@ -124,6 +137,7 @@ export class PlayScene extends Phaser.Scene {
     this.updateCamera()
     this.updateAltitude()
     this.updateObstacles(dt)
+    this.updateInteractives(dt)
     this.drawGrid()
     this.syncView()
   }
@@ -257,6 +271,96 @@ export class PlayScene extends Phaser.Scene {
     })
   }
 
+  private updateInteractives(dt: number): void {
+    const specs = this.interactiveSpawner.update({
+      cameraTop: this.cameraY,
+      meters: this.meters,
+    })
+
+    for (const spec of specs) {
+      const item = createInteractive(this, spec)
+      if (item) this.interactives.push(item)
+    }
+
+    for (let i = this.interactives.length - 1; i >= 0; i -= 1) {
+      const item = this.interactives[i]
+      if (!item) continue
+
+      item.update(dt, this.time.now)
+      const contact = item.contact(this.ball)
+      if (contact) {
+        this.applyInteractiveContact(item, contact)
+        if (item.spent && item.kind !== 'spring') {
+          item.destroy()
+          this.interactives.splice(i, 1)
+          continue
+        }
+      }
+
+      const belowScreen =
+        item.bounds.y - this.cameraY >
+        TUNING.world.height + TUNING.obstacle.despawnMargin
+      if (belowScreen) {
+        item.destroy()
+        this.interactives.splice(i, 1)
+      }
+    }
+  }
+
+  private applyInteractiveContact(item: InteractiveInstance, contact: InteractiveContact): void {
+    switch (contact.result) {
+      case 'collect': {
+        const value = contact.coins ?? TUNING.collect.coinValue
+        this.addCoins(value)
+        audio.play('coin')
+        gameEvents.emit('coin', {
+          x: contact.point.x,
+          y: contact.point.y,
+          value,
+          fever: false,
+        })
+        break
+      }
+      case 'ring': {
+        this.addCoins(contact.coins ?? TUNING.collect.ringCoinBurst)
+        audio.play('ring')
+        this.cameras.main.flash(140, 77, 226, 197)
+        gameEvents.emit('ring', { x: contact.point.x, y: contact.point.y })
+        break
+      }
+      case 'launch': {
+        this.ball.vy = -TUNING.collect.springLaunchSpeed
+        this.ball.vx *= 0.85
+        audio.play('spring')
+        this.cameras.main.shake(90, 0.004)
+        gameEvents.emit('spring', { x: contact.point.x, y: contact.point.y })
+        break
+      }
+      case 'pickup': {
+        this.armedPowerup = contact.pickup ?? null
+        DEBUG_STATE.powerup = this.armedPowerup ?? '—'
+        audio.play('pickup')
+        if (contact.pickup) {
+          gameEvents.emit('pickup', {
+            x: contact.point.x,
+            y: contact.point.y,
+            kind: contact.pickup,
+          })
+        }
+        break
+      }
+    }
+
+    item.react(contact)
+  }
+
+  private addCoins(amount: number): void {
+    if (!Number.isFinite(amount) || amount <= 0) return
+    this.coins += amount
+    this.hud.setCoins(this.coins)
+    DEBUG_STATE.coins = this.coins
+  }
+
   private syncView(): void {
     this.ballView.setPosition(this.ball.x, this.ball.y)
 
@@ -266,7 +370,7 @@ export class PlayScene extends Phaser.Scene {
     DEBUG_STATE.ballVy = this.ball.vy
     DEBUG_STATE.meters = this.meters
     DEBUG_STATE.coins = this.coins
-    DEBUG_STATE.extra = `obs ${this.obstacles.length}`
+    DEBUG_STATE.extra = `obs ${this.obstacles.length} · itv ${this.interactives.length}`
   }
 
   private handleTap(x: number, y: number): void {
@@ -324,10 +428,13 @@ export class PlayScene extends Phaser.Scene {
   private persistBest(): void {
     const save = this.registry.get('save') as SaveV1
     const whole = Math.floor(this.meters)
-    if (whole <= save.bestMeters) return
-    const next: SaveV1 = { ...save, bestMeters: whole }
+    const bestMeters = Math.max(save.bestMeters, whole)
+    const totalCoins = save.totalCoins + this.coins
+    if (bestMeters === save.bestMeters && this.coins === 0) return
+
+    const next: SaveV1 = { ...save, bestMeters, totalCoins }
     this.registry.set('save', next)
-    this.hud.setBest(whole)
+    if (bestMeters > save.bestMeters) this.hud.setBest(bestMeters)
     const store = this.registry.get('saveStore') as SaveStore | undefined
     if (store) void store.save(next)
   }

@@ -113,10 +113,32 @@ export const TUNING = {
     coinValue: 1,
     ringRadius: 62,
     ringThickness: 10,
+    /** Fração do raio da argola que conta como "passou por dentro". */
+    ringPassRatio: 0.55,
     ringCoinBurst: 8,
     springWidth: 88,
+    springHeight: 22,
     springLaunchSpeed: 2650,
+    springCooldownMs: 350,
     pickupRadius: 26,
+  },
+
+  interactive: {
+    firstAtMeters: 18,
+    startStepMeters: 62,
+    minStepMeters: 34,
+    stepAtMeters: 900,
+    /** Interativos nascem acima do topo da câmera. */
+    aboveTop: 130,
+    jitterY: 170,
+    /** Trilha de moedas: quantidade, espaçamento vertical e arco lateral. */
+    coinTrail: 6,
+    coinSpacing: 44,
+    coinArc: 28,
+    edgeMargin: 44,
+    maxPerUpdate: 2,
+    /** Pesos: moeda, argola, mola, magnet, aimed. */
+    weights: [55, 20, 10, 10, 5],
   },
 
   powerup: {

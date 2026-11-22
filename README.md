@@ -41,11 +41,13 @@ O Vite sobe o servidor com `host: true`, então a página também abre pelo celu
 
 Push em `main` dispara `.github/workflows/deploy.yml`: instala com `npm ci`, roda `typecheck`, `test` e `build`, e publica `dist/` no GitHub Pages — https://rigato.github.io/keepie-uppie/
 
+A fonte do Pages precisa estar em **GitHub Actions**. Se voltar para "Deploy from a branch", o Pages publica o `index.html` de origem (que aponta para `/src/main.ts`) e o site quebra.
+
 O workflow também pode ser disparado manualmente (`workflow_dispatch`). Se o celular mostrar uma versão antiga, recarregue forçado: o Pages tem cache de CDN.
 
 ## Estado do projeto
 
-**Fase F2 (obstáculos):** hard, soft, breakable e birds/bando com spawner procedural por altitude; nenhum contato mata (só a queda). O core loop da F1 segue: chute só em queda, catraca, morte e retry, altitude e melhor score local. Interativos e powerups entram nas fases seguintes.
+**Fase F3 (interativos):** moedas com contador, argolas com burst, molas que lançam sem consumir chute e pickups de Magnet/Aimed Shot (efeito entra em F4). Obstáculos, core loop e save seguem da F1/F2. Powerups e camadas de skill entram nas fases seguintes.
 
 ## Documentação
 
