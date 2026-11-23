@@ -14,48 +14,62 @@ export const TUNING = {
   },
 
   physics: {
-    gravity: 1700, // u/s²
+    /** Queda mais flutuante: o arco normal cabe em 1.5–2.5 s sem virar projétil. */
+    gravity: 1300, // u/s²
     wallRestitution: 1,
     /** Quantos unidades de mundo equivalem a 1 metro de altitude. */
     pxPerMeter: 20,
-    maxFallSpeed: 2600,
+    /**
+     * Teto de queda: a bola acelera só até aqui e depois cai em velocidade
+     * constante. É o que mantém a janela de toque humana mesmo sem mirar.
+     */
+    maxFallSpeed: 900,
   },
 
   kick: {
     /** Força básica somada à velocidade de encontro. */
-    baseSpeed: 950,
-    /** Quanto da velocidade de queda vira força de chute. */
-    impactFactor: 0.5,
-    /** Piso: toque hesitante nunca condena (~1/3 da tela de apex). [TESTE] */
-    minSpeed: 1000,
-    /** Teto da faixa: arco de ~2.5 s. [TESTE] */
-    maxSpeed: 2100,
+    baseSpeed: 1100,
+    /**
+     * Quanto da velocidade de queda vira força. Comprimido de propósito:
+     * deixar a bola cair dá um bônus, mas tocar no ápice não condena o arco.
+     */
+    impactFactor: 0.4,
+    /** Piso: toque hesitante ainda dá um arco de ~1.7 s. [TESTE] */
+    minSpeed: 1100,
+    /** Teto da faixa normal: arco de ~2.4 s. [TESTE] */
+    maxSpeed: 1550,
     /** Componente lateral máxima no toque na borda. */
     maxLateral: 0.75,
-    /** Janela central para o Perfect Touch, em fração do raio. [TESTE] */
+    /** Janela central para o Perfect Touch, em fração do raio de ângulo. [TESTE] */
     perfectWindow: 0.22,
     /**
-     * Raio generoso do alvo de toque e da mira (unidades de mundo). O jogador
-     * toca dentro do anel; o ângulo usa essa mesma área, então centro = reto,
-     * borda do anel = ângulo máximo.
+     * Área de toque generosa: acertar a bola é fácil mesmo com o dedo em
+     * movimento. O ângulo usa `angleRadius`, não esta área.
      */
-    touchRadius: 60,
+    touchRadius: 75,
+    /** Área que define o ângulo: preserva a calibração de mira de 60 u. */
+    angleRadius: 60,
     /** Tolera toque perto do ápice (vy levemente negativa) em vez de exigir queda pura. */
     apexTolerance: 120,
-    /** Anel (de pontos) que comunica a área de chute; ferramenta de tuning, oculta por padrão. */
-    ringRadius: 60,
+    /** Guarda um toque que chega pouco antes do ápice e dispara quando a bola fica chutável. */
+    apexBufferMs: 160,
+    /** Anel (de pontos) que comunica a área de toque; ferramenta de tuning, oculta por padrão. */
+    ringRadius: 75,
   },
 
   camera: {
     /**
-     * Linha de espera da catraca: a bola sobe livre até esta fração da tela
-     * (a partir do topo) antes de a câmera começar a segui-la.
+     * Linha de espera da catraca: a bola pode subir visivelmente até esta
+     * fração da tela antes de a câmera começar a segui-la.
      */
-    ratchetAt: 0.2,
+    ratchetAt: 0.34,
     /** Velocidade de acompanhamento (lerp por segundo); menor = mais atraso. */
     followSpeed: 6,
-    /** A bola nunca sai acima desta fração do topo, mesmo com o atraso. */
-    maxTop: 0.14,
+    /**
+     * A bola nunca sai acima desta fração do topo. 26% deixa o ápice abaixo
+     * do scrim do HUD e devolve espaço de leitura acima da bola.
+     */
+    maxTop: 0.26,
   },
 
   run: {
@@ -69,7 +83,7 @@ export const TUNING = {
 
   perfect: {
     /** Força aplicada no perfect: topo da faixa. */
-    speed: 2100,
+    speed: 1550,
   },
 
   obstacle: {
@@ -80,8 +94,8 @@ export const TUNING = {
     softHeight: 18,
     breakableWidth: 106,
     breakableHeight: 21,
-    /** Velocidade mínima para romper o breakable. [TESTE] */
-    breakSpeed: 1400,
+    /** Velocidade mínima para romper o breakable (recalibrada com a nova faixa de chute). [TESTE] */
+    breakSpeed: 1350,
     /** Fração de velocidade perdida no soft. */
     softDamp: 0.45,
     birdWidth: 37,
@@ -132,7 +146,8 @@ export const TUNING = {
     ringCoinBurst: 8,
     springWidth: 70,
     springHeight: 18,
-    springLaunchSpeed: 2650,
+    /** Recalibrada para manter o mesmo ápice com a gravidade nova (era 2650 com g=1700). */
+    springLaunchSpeed: 2320,
     springCooldownMs: 350,
     pickupRadius: 21,
   },
@@ -165,9 +180,9 @@ export const TUNING = {
     aimMaxDrag: 220,
     /** Arrasto mínimo para a mira contar; abaixo disso é "tap" e usa a força default. */
     aimDeadZone: 24,
-    /** Faixa de velocidade do tiro mirado, fora da faixa normal. */
-    aimMinSpeed: 1300,
-    aimMaxSpeed: 2650,
+    /** Faixa de velocidade do tiro mirado, fora da faixa normal (recalibrada com g=1300). */
+    aimMinSpeed: 1200,
+    aimMaxSpeed: 2200,
     /** Duração do Magnet. [TESTE] */
     magnetDurationMs: 15000,
     /** Raio de puxão (−20% da calibração anterior); a aura acompanha. [TESTE] */

@@ -20,7 +20,7 @@ describe('computeKick', () => {
     const result = computeKick(ball({ vy: 900 }), { x: 270 - 18, y: 500 })
     expect(result.kind).toBe('kick')
     expect(result.vx).toBeGreaterThan(0)
-    expect(result.offset).toBeCloseTo(-18 / TUNING.kick.touchRadius, 5)
+    expect(result.offset).toBeCloseTo(-18 / TUNING.kick.angleRadius, 5)
   })
 
   it('tocar na direita sobe à esquerda', () => {
@@ -65,6 +65,36 @@ describe('computeKick', () => {
     expect(isInsideBall(ball(), { x: 270 + 30.1, y: 500 })).toBe(false)
   })
 
+  it('área de toque maior que a área do ângulo: a borda externa chuta com ângulo máximo', () => {
+    const result = computeKick(ball({ vy: 900 }), {
+      x: 270 + TUNING.kick.angleRadius + 10,
+      y: 500,
+    })
+    expect(result.kind).toBe('kick')
+    expect(result.offset).toBe(1)
+  })
+
+  it('chute no ápice ainda tem arco de verdade', () => {
+    const result = computeKick(ball({ vy: 0 }), { x: 270, y: 500 })
+    expect(result.kind).toBe('kick')
+    expect(result.arcTime).toBeGreaterThanOrEqual(1.5)
+    expect(result.arcTime).toBeLessThanOrEqual(2.5)
+  })
+
+  it('deixar a bola cair até o teto dá bônus de força sem virar outro jogo', () => {
+    const apex = computeKick(ball({ vy: 0 }), { x: 270 + 24, y: 500 })
+    const terminal = computeKick(ball({ vy: TUNING.physics.maxFallSpeed }), { x: 270 + 24, y: 500 })
+    const apexSpeed = Math.hypot(apex.vx, apex.vy)
+    const terminalSpeed = Math.hypot(terminal.vx, terminal.vy)
+    expect(terminalSpeed).toBeGreaterThan(apexSpeed)
+    expect(terminalSpeed / apexSpeed).toBeLessThan(1.5)
+  })
+
+  it('a queda máxima passa tempo suficiente dentro do alvo de toque', () => {
+    const windowSeconds = (2 * TUNING.kick.touchRadius) / TUNING.physics.maxFallSpeed
+    expect(windowSeconds).toBeGreaterThanOrEqual(0.15)
+  })
+
   it('força cresce com a velocidade de encontro', () => {
     const slow = computeKick(ball({ vy: 300 }), { x: 270 + 30, y: 500 })
     const fast = computeKick(ball({ vy: 1600 }), { x: 270 + 30, y: 500 })
@@ -72,8 +102,8 @@ describe('computeKick', () => {
     expect(fast.power).toBeGreaterThan(slow.power)
   })
 
-  it('respeita o piso em toque hesitante', () => {
-    const result = computeKick(ball({ vy: 1 }), { x: 270 + 24, y: 500 })
+  it('respeita o piso em toque hesitante perto do ápice', () => {
+    const result = computeKick(ball({ vy: -100 }), { x: 270 + 24, y: 500 })
     expect(Math.hypot(result.vx, result.vy)).toBeCloseTo(TUNING.kick.minSpeed, 5)
   })
 

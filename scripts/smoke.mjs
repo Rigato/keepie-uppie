@@ -244,9 +244,9 @@ async function main() {
       const { ball, canvas } = falling
       if (!canvas) throw new Error('canvas sem tamanho para calcular o clique')
 
-      // Toca levemente fora do centro (0.25r) para evitar PERFECT e manter o arco
-      // baixo; assim não nascem obstáculos e a morte fica determinística.
-      const worldX = ball.x + ball.r * 0.25
+      // Toca fora da janela do PERFECT (0.6r) para manter o arco normal;
+      // assim a morte fica determinística e não depende do bônus do perfect.
+      const worldX = ball.x + ball.r * 0.6
       const worldY = ball.y - falling.cameraY
       const x = canvas.left + (worldX / WORLD_WIDTH) * canvas.width
       const y = canvas.top + (worldY / WORLD_HEIGHT) * canvas.height

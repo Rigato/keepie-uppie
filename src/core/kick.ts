@@ -32,20 +32,22 @@ export function clamp(value: number, min: number, max: number): number {
 /**
  * Regra central do jogo: só se chuta bola em queda. O ângulo é oposto ao ponto
  * de toque; a força vem da velocidade de encontro, com piso de segurança.
- * O alvo de toque é generoso (`touchRadius`), mas o ângulo usa o raio real da
- * bola — tocar longe da bola vira ângulo máximo, não um chute "sem intenção".
+ * O alvo de toque (`touchRadius`) é maior que a área do ângulo (`angleRadius`):
+ * o jogador pode tocar um pouco fora da bola sem perder o chute, mas a mira
+ * continua com a calibração de 60 u (centro = reto, borda do ângulo = máximo).
  */
 export function computeKick(
   ball: BallLike,
   point: Vec2,
   touchRadius = TUNING.kick.touchRadius,
+  angleRadius = TUNING.kick.angleRadius,
 ): KickResult {
   if (!isInsideBall({ ...ball, r: touchRadius }, point)) return whiff('miss')
   // Eixo Y cresce para baixo: bola em queda tem vy > 0. Perto do ápice a
   // velocidade é ~0; toleramos uma subida mínima para o toque não "sumir".
   if (ball.vy < -TUNING.kick.apexTolerance) return whiff('notFalling')
 
-  const offset = clamp((point.x - ball.x) / Math.max(1, touchRadius), -1, 1)
+  const offset = clamp((point.x - ball.x) / Math.max(1, angleRadius), -1, 1)
   const perfect = Math.abs(offset) <= TUNING.kick.perfectWindow
 
   const speed = perfect

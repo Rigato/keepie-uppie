@@ -3,7 +3,7 @@ import { metersFromTop, ratchetCameraY, smoothCameraY } from '../core/camera'
 import { reflectVelocity } from '../core/collision'
 import { resolveAim } from '../core/aim'
 import { InteractiveSpawner } from '../core/interactive-spawner'
-import { computeKick, isInsideBall } from '../core/kick'
+import { computeKick, isInsideBall, type KickResult } from '../core/kick'
 import { ObstacleSpawner } from '../core/spawner'
 import { StreakTracker, labelForCount, type StreakLabel } from '../core/streak'
 import { audio } from '../fx/audio'
@@ -75,6 +75,8 @@ export class PlayScene extends Phaser.Scene {
   private trailAt = 0
   private pauseRect = new Phaser.Geom.Rectangle(0, 0, 0, 0)
   private kickRing!: Phaser.GameObjects.Container
+  /** Toque que chegou um pouco antes do ápice; dispara quando a bola fica chutável. */
+  private bufferedTap: { x: number; y: number; until: number; aimed: boolean } | null = null
 
   constructor() {
     super('Play')
@@ -110,6 +112,7 @@ export class PlayScene extends Phaser.Scene {
     this.trail = []
     this.trailIndex = 0
     this.trailAt = 0
+    this.bufferedTap = null
     DEBUG_STATE.powerup = '—'
 
     this.cameras.main.setScroll(0, 0)
@@ -280,6 +283,7 @@ export class PlayScene extends Phaser.Scene {
     }
 
     this.stepPhysics(dt)
+    this.resolveBufferedTap()
     this.updateCamera(dt)
     this.updateAltitude()
     this.updateObstacles(dt)
@@ -580,8 +584,12 @@ export class PlayScene extends Phaser.Scene {
 
     if (this.aimedArmed) {
       const touch = { ...this.ball, r: TUNING.kick.touchRadius }
-      if (this.ball.vy > 0 && isInsideBall(touch, { x, y })) {
-        this.beginAim(x, y)
+      if (isInsideBall(touch, { x, y })) {
+        if (this.ball.vy >= -TUNING.kick.apexTolerance) {
+          this.beginAim(x, y)
+        } else {
+          this.bufferTap(x, y, true)
+        }
         return
       }
     }
@@ -591,6 +599,7 @@ export class PlayScene extends Phaser.Scene {
 
   private beginAim(x: number, y: number): void {
     this.aiming = true
+    this.bufferedTap = null
     this.aimedArmed = false
     this.powerupHud.setAimed(false)
     this.aimEndsAt = this.time.now + TUNING.powerup.aimWindowMs
@@ -684,6 +693,7 @@ export class PlayScene extends Phaser.Scene {
       if (this.retryReady) this.retry()
       return
     }
+    this.bufferedTap = null
 
     const result = computeKick(this.ball, { x, y })
     if (result.kind === 'whiff') {
@@ -692,11 +702,51 @@ export class PlayScene extends Phaser.Scene {
         this.registerWhiff()
         this.showMiss(x, y)
       } else {
-        audio.play('ui', { pitch: 0.7, volume: 0.35 })
+        // Toque um pouco antes do ápice: guarda por um instante em vez de perder.
+        this.bufferTap(x, y, false)
       }
       return
     }
 
+    this.applyKick(result)
+  }
+
+  /** Guarda o toque para disparar no instante em que a bola fica chutável. */
+  private bufferTap(x: number, y: number, aimed: boolean): void {
+    this.bufferedTap = {
+      x,
+      y,
+      until: this.time.now + TUNING.kick.apexBufferMs,
+      aimed,
+    }
+    audio.play('ui', { pitch: 0.7, volume: 0.22 })
+  }
+
+  private resolveBufferedTap(): void {
+    const buffered = this.bufferedTap
+    if (!buffered) return
+
+    if (this.time.now > buffered.until) {
+      this.bufferedTap = null
+      return
+    }
+
+    const result = computeKick(this.ball, { x: buffered.x, y: buffered.y })
+    if (result.kind !== 'kick') {
+      // Se a bola se afastou do toque guardado, desiste em vez de chutar longe.
+      if (result.reason === 'miss') this.bufferedTap = null
+      return
+    }
+
+    this.bufferedTap = null
+    if (buffered.aimed && this.aimedArmed) {
+      this.beginAim(buffered.x, buffered.y)
+      return
+    }
+    this.applyKick(result)
+  }
+
+  private applyKick(result: KickResult): void {
     this.ball.vx = result.vx
     this.ball.vy = result.vy
     this.lastArc(result.arcTime, result.power)
@@ -704,7 +754,9 @@ export class PlayScene extends Phaser.Scene {
     if (!this.started) this.markStarted()
     this.registerCleanKick(result.perfect)
 
-    audio.play(result.perfect ? 'perfect' : 'kick', { pitch: result.perfect ? 1 : 0.95 + result.power * 0.1 })
+    audio.play(result.perfect ? 'perfect' : 'kick', {
+      pitch: result.perfect ? 1 : 0.95 + result.power * 0.1,
+    })
     this.cameras.main.shake(60, TUNING.fx.shakeKick)
     this.tweens.add({
       targets: this.ballView,
@@ -836,6 +888,7 @@ export class PlayScene extends Phaser.Scene {
 
   private openPause(): void {
     if (this.dead || this.scene.isActive('Pause')) return
+    this.bufferedTap = null
     audio.play('ui')
     this.scene.launch('Pause')
     this.scene.pause()
@@ -899,6 +952,7 @@ export class PlayScene extends Phaser.Scene {
     if (this.dead) return
     this.dead = true
     this.aiming = false
+    this.bufferedTap = null
     this.aimedArmed = false
     this.magnetEndsAt = 0
     this.aimUi.hide()
