@@ -48,7 +48,7 @@ export const createRing: InteractiveFactory = (scene, spec) => {
   // Brilho fino deslocado para fora e sombra na borda interna dão volume ao aro.
   visual.lineStyle(1.5, HIGHLIGHT_COLOR, 0.16)
   visual.strokeCircle(0, 0, radius + thickness * 0.3)
-  visual.lineStyle(1, PALETTE.bg, 0.55)
+  visual.lineStyle(1, PALETTE.bgSoft, 0.5)
   visual.strokeCircle(0, 0, radius - thickness * 0.45)
 
   // Aro interno tênue: mostra onde o centro da bola precisa passar.
@@ -60,7 +60,7 @@ export const createRing: InteractiveFactory = (scene, spec) => {
   const markerOuter = radius + thickness * 0.7
   for (let i = 0; i < 4; i += 1) {
     const angle = (i * Math.PI) / 2 - Math.PI / 2 // topo, direita, baixo, esquerda
-    visual.lineStyle(Math.max(2, thickness * 0.2), PALETTE.ink, 0.8)
+    visual.lineStyle(Math.max(2, thickness * 0.2), PALETTE.bgSoft, 0.85)
     visual.lineBetween(
       Math.cos(angle) * markerInner,
       Math.sin(angle) * markerInner,

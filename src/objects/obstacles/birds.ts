@@ -67,7 +67,7 @@ export const createBirds: ObstacleFactory = (scene, spec) => {
   function makeBody(): Phaser.GameObjects.Graphics {
     const body = scene.add.graphics()
     body.fillStyle(PALETTE.bird, 1)
-    body.lineStyle(1.5, PALETTE.bg, 0.85)
+    body.lineStyle(1.5, PALETTE.ink, 0.7)
     body.beginPath()
     body.moveTo(width * 0.5, 0)
     body.lineTo(width * 0.02, -height * 0.34)

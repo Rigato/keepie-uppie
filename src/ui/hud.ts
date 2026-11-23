@@ -48,7 +48,7 @@ export class Hud {
 
     scene.add
       .circle(right - 74, m + 8, 9, PALETTE.coin)
-      .setStrokeStyle(2, 0xffffff, 0.18)
+      .setStrokeStyle(2, PALETTE.ballShade, 0.85)
       .setScrollFactor(0)
       .setDepth(100)
 

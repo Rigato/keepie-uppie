@@ -24,6 +24,7 @@ import {
 import { formatMeters, type SaveStore, type SaveV1 } from '../platform/storage'
 import { AimUi } from '../ui/aim'
 import { Hud } from '../ui/hud'
+import { Parallax } from '../ui/parallax'
 import { PowerupHud } from '../ui/powerup-hud'
 import { drawBackdrop } from '../ui/backdrop'
 
@@ -38,6 +39,7 @@ export class PlayScene extends Phaser.Scene {
   private ballView!: Phaser.GameObjects.Container
   private hud!: Hud
   private grid!: Phaser.GameObjects.Graphics
+  private parallax!: Parallax
   private hint?: Phaser.GameObjects.Text
 
   private started = false
@@ -119,16 +121,26 @@ export class PlayScene extends Phaser.Scene {
 
     drawBackdrop(this, { walls: true }).setScrollFactor(0).setDepth(0)
     this.grid = this.add.graphics().setDepth(1)
+    this.parallax = new Parallax(this)
 
     // Scrim do topo: obstáculos somem atrás do HUD em vez de competir com ele.
     const scrim = this.add.graphics().setScrollFactor(0).setDepth(90)
-    scrim.fillGradientStyle(PALETTE.bg, PALETTE.bg, PALETTE.bg, PALETTE.bg, 0.88, 0.88, 0, 0)
+    scrim.fillGradientStyle(
+      PALETTE.bgSoft,
+      PALETTE.bgSoft,
+      PALETTE.bgSoft,
+      PALETTE.bgSoft,
+      0.9,
+      0.9,
+      0,
+      0,
+    )
     scrim.fillRect(0, 0, width, 170)
 
     this.ballView = this.add.container(this.ball.x, this.ball.y).setDepth(10)
-    const glow = this.add.circle(0, 0, TUNING.ball.radius + 18, PALETTE.ball, 0.07)
+    const glow = this.add.circle(0, 0, TUNING.ball.radius + 18, PALETTE.ball, 0.09)
     const body = this.add.circle(0, 0, TUNING.ball.radius, PALETTE.ball)
-    const rim = this.add.circle(0, 0, TUNING.ball.radius).setStrokeStyle(3, 0x000000, 0.14)
+    const rim = this.add.circle(0, 0, TUNING.ball.radius).setStrokeStyle(3, PALETTE.ink, 0.28)
     const shine = this.add.circle(-10, -10, 8, 0xffffff, 0.32)
     this.ballView.add([glow, body, rim, shine])
 
@@ -158,14 +170,14 @@ export class PlayScene extends Phaser.Scene {
     this.aimUi = new AimUi(this)
 
     this.magnetAura = this.add
-      .circle(0, 0, TUNING.powerup.magnetRadius, PALETTE.magnet, 0.06)
-      .setStrokeStyle(2, PALETTE.magnet, 0.22)
+      .circle(0, 0, TUNING.powerup.magnetRadius, PALETTE.magnet, 0.1)
+      .setStrokeStyle(2, PALETTE.magnet, 0.32)
       .setDepth(9)
       .setVisible(false)
 
     this.feverAura = this.add
-      .circle(0, 0, TUNING.streak.feverAuraRadius, PALETTE.fever, 0.07)
-      .setStrokeStyle(2, PALETTE.fever, 0.18)
+      .circle(0, 0, TUNING.streak.feverAuraRadius, PALETTE.fever, 0.11)
+      .setStrokeStyle(2, PALETTE.fever, 0.3)
       .setDepth(8)
       .setVisible(false)
 
@@ -285,6 +297,7 @@ export class PlayScene extends Phaser.Scene {
     this.stepPhysics(dt)
     this.resolveBufferedTap()
     this.updateCamera(dt)
+    this.parallax.update(this.cameraY, this.time.now)
     this.updateAltitude()
     this.updateObstacles(dt)
     this.updateInteractives(dt)
@@ -993,7 +1006,7 @@ export class PlayScene extends Phaser.Scene {
     const isBest = this.wasBest
 
     const overlay = this.add.container(0, 0).setDepth(50).setScrollFactor(0)
-    const dim = this.add.rectangle(0, 0, width, height, PALETTE.bg, 0.78).setOrigin(0)
+    const dim = this.add.rectangle(0, 0, width, height, PALETTE.bgSoft, 0.9).setOrigin(0)
     const title = this.add
       .text(width / 2, height * 0.3, 'GAME OVER', {
         fontFamily: FONT_SANS,
@@ -1038,7 +1051,7 @@ export class PlayScene extends Phaser.Scene {
 
     this.tweens.add({
       targets: retry,
-      alpha: { from: 1, to: 0.3 },
+      alpha: { from: 1, to: 0.5 },
       duration: 850,
       yoyo: true,
       repeat: -1,
@@ -1072,7 +1085,7 @@ export class PlayScene extends Phaser.Scene {
     g.clear()
 
     const offset = ((this.cameraY % spacing) + spacing) % spacing
-    g.lineStyle(1, 0xffffff, 0.03)
+    g.lineStyle(1, PALETTE.ink, 0.03)
     for (let y = offset - spacing; y < height + spacing; y += spacing) g.lineBetween(0, y, width, y)
 
     const strong = ((this.cameraY % strongSpacing) + strongSpacing) % strongSpacing

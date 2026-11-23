@@ -6,6 +6,7 @@ import { CSS_PALETTE, PALETTE } from '../game/palette'
 import { TUNING } from '../game/tuning'
 import type { PlatformService } from '../platform/types'
 import { formatMeters, type SaveV1 } from '../platform/storage'
+import { Parallax } from '../ui/parallax'
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -23,6 +24,7 @@ export class BootScene extends Phaser.Scene {
 
 export class TitleScene extends Phaser.Scene {
   private starting = false
+  private parallax?: Parallax
 
   constructor() {
     super('Title')
@@ -32,14 +34,17 @@ export class TitleScene extends Phaser.Scene {
     const { width, height } = TUNING.world
     const save = this.registry.get('save') as SaveV1
 
-    const g = this.add.graphics()
+    const g = this.add.graphics().setDepth(-2)
     g.fillGradientStyle(PALETTE.bgSoft, PALETTE.bgSoft, PALETTE.bg, PALETTE.bg, 1)
     g.fillRect(0, 0, width, height)
 
-    this.add.circle(width / 2, height * 0.24, 132, PALETTE.accent, 0.05)
+    this.parallax = new Parallax(this, -1)
+    this.parallax.update(0, this.time.now)
+
+    this.add.circle(width / 2, height * 0.24, 132, PALETTE.accent, 0.08)
     this.add.circle(width / 2, height * 0.24, 58, PALETTE.ball)
-    this.add.circle(width / 2, height * 0.24, 58).setStrokeStyle(3, 0x000000, 0.14)
-    this.add.circle(width / 2 - 18, height * 0.24 - 18, 13, 0xffffff, 0.32)
+    this.add.circle(width / 2, height * 0.24, 58).setStrokeStyle(3, PALETTE.ink, 0.24)
+    this.add.circle(width / 2 - 18, height * 0.24 - 18, 13, 0xffffff, 0.36)
 
     this.add
       .text(width / 2, height * 0.39, 'KEEPIE', {
@@ -82,7 +87,7 @@ export class TitleScene extends Phaser.Scene {
 
     this.tweens.add({
       targets: tap,
-      alpha: { from: 1, to: 0.3 },
+      alpha: { from: 1, to: 0.5 },
       duration: 900,
       yoyo: true,
       repeat: -1,
@@ -123,6 +128,10 @@ export class TitleScene extends Phaser.Scene {
     this.input.on('pointerdown', () => this.startRun())
     this.input.keyboard?.on('keydown-SPACE', () => this.startRun())
     this.input.keyboard?.on('keydown-ENTER', () => this.startRun())
+  }
+
+  update(): void {
+    this.parallax?.update(0, this.time.now)
   }
 
   private startRun(): void {

@@ -70,8 +70,8 @@ export const createPickup: InteractiveFactory = (scene, spec) => {
     base.fillPath()
     base.strokePath()
 
-    // Painel escuro dá contraste ao ícone branco sem sair da paleta.
-    base.fillStyle(PALETTE.bg, 0.34)
+    // Painel claro separa o ícone escuro do hexágono colorido.
+    base.fillStyle(PALETTE.bg, 0.42)
     traceHex(base, HEX_RADIUS * 0.68)
     base.fillPath()
 

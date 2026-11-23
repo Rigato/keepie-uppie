@@ -111,7 +111,7 @@ export class PauseScene extends Phaser.Scene {
     const { width, height } = TUNING.world
     this.closing = false
 
-    // Scrim: escurece a Play pausada sem esconder o contexto da partida.
+    // Scrim: clareia a Play pausada sem esconder o contexto da partida.
     this.add.rectangle(width / 2, height / 2, width, height, PALETTE.bg, 0.82)
 
     this.add

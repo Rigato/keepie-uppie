@@ -17,10 +17,10 @@ export function drawBackdrop(
   g.fillGradientStyle(PALETTE.bgSoft, PALETTE.bgSoft, PALETTE.bg, PALETTE.bg, 1)
   g.fillRect(0, 0, width, height)
 
-  g.lineStyle(1, 0xffffff, 0.03)
+  g.lineStyle(1, PALETTE.ink, 0.03)
   for (let y = 120; y < height; y += 120) g.lineBetween(0, y, width, y)
 
-  g.lineStyle(1, PALETTE.accent, 0.06)
+  g.lineStyle(1, PALETTE.accent, 0.05)
   for (let y = 600; y < height; y += 600) g.lineBetween(0, y, width, y)
 
   if (!opts.walls) return g

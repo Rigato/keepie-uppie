@@ -121,7 +121,7 @@ export const createSpring: InteractiveFactory = (scene, spec) => {
     PLATE_HEIGHT,
     PLATE_HEIGHT / 2,
   )
-  coil.lineStyle(1, PALETTE.bg, 0.5)
+  coil.lineStyle(1, PALETTE.ink, 0.35)
   coil.strokeRoundedRect(
     -plateWidth / 2 + 0.5,
     -bodyHeight - PLATE_HEIGHT + 0.5,
