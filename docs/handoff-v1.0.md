@@ -11,7 +11,7 @@
 | **Status** | MVP01 implementado (F0–F7); em ciclo de ajustes guiado pelo feedback do usuário, **aguardando o veredito da 0.1.3** |
 | **Fonte de design** | `docs/gdd-keepie-uppie.md` (o GDD vence qualquer conflito com este documento) |
 
-> **Atualização (23/11/2026):** a build publicada agora é **`0.1.5-mvp1`**. O veredito da 0.1.3 foi "ainda difícil e não divertido"; a resposta foi a rodada de queda/toque/câmera em `docs/release/fix4-queda-e-toque.md` e, depois, a rodada visual (céu claro + paralaxe) em `docs/release/fix5-visual-claro-paralaxe.md`. O restante deste handoff descreve o estado da 0.1.3 e continua válido como mapa do projeto.
+> **Atualização (23/11/2026):** a build publicada agora é **`0.1.6-mvp1`**. O veredito da 0.1.3 foi "ainda difícil e não divertido"; a resposta foi a rodada de queda/toque/câmera (`fix4`), seguida do céu claro + paralaxe (`fix5`) e, agora, nuvens mais evidentes + Aimed Shot no esquema estilingue (`docs/release/fix6-nuvens-e-estilingue.md`). O restante deste handoff descreve o estado da 0.1.3 e continua válido como mapa do projeto.
 
 Este handoff é autossuficiente para uma nova sessão de IA continuar sem o histórico da conversa. Leia também `AGENTS.md`.
 

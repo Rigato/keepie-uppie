@@ -1,6 +1,6 @@
 # Playtest — Keepie-Uppie MVP01
 
-**Build:** `0.1.5-mvp1` · F7 · https://rigato.github.io/keepie-uppie/
+**Build:** `0.1.6-mvp1` · F7 · https://rigato.github.io/keepie-uppie/
 **Objetivo:** responder as 6 perguntas do plano de design. O playtest decide o que vem depois; o documento não.
 
 ## Antes de começar
@@ -22,7 +22,7 @@
 3. **Whiff:** erre o toque de propósito; note o custo (tempo, pânico, streak).
 4. **Obstáculos:** identifique cada um pela silhueta/som. Tente morrer batendo em um: não deve ser possível.
 5. **Rota:** busque uma trilha de moedas, atravesse uma argola, pise numa mola. Vale o desvio?
-6. **Powerups:** pegue o ímã e passe perto de moedas; pegue a mira, arraste e solte. Deixe a mira expirar uma vez.
+6. **Powerups:** pegue o ímã e passe perto de moedas; pegue a mira, puxe para trás e solte (estilingue: a bola sai no lado oposto). Deixe a mira expirar uma vez.
 7. **Streak:** encadeie chutes limpos até a febre; erre um whiff e veja a quebra.
 
 ## As 6 perguntas
@@ -59,7 +59,7 @@ Comentário:
 
 ### 5. Aimed Shot é poder, não freio?
 
-*O que observar:* a pausa de 2 s é um momento de "carta na manga" ou quebra o flow? O arrasto é preciso no dedo? O timeout com força média é justo? Voltar ao ritmo depois do tiro é natural?
+*O que observar:* a pausa de 2 s é um momento de "carta na manga" ou quebra o flow? O puxão para trás é preciso no dedo? A direção oposta (estilingue) é clara? O timeout com força média é justo? Voltar ao ritmo depois do tiro é natural?
 
 Nota: ___ / 5
 Comentário:

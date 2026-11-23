@@ -27,13 +27,13 @@ interface Streak {
 }
 
 const CLOUDS: readonly Cloud[] = [
-  { x: 112, y: 36, r: 62, alpha: 0.3 },
-  { x: 338, y: 132, r: 48, alpha: 0.24 },
-  { x: 206, y: 262, r: 68, alpha: 0.2 },
-  { x: 430, y: 366, r: 54, alpha: 0.26 },
-  { x: 126, y: 498, r: 44, alpha: 0.22 },
-  { x: 304, y: 618, r: 64, alpha: 0.18 },
-  { x: 448, y: 704, r: 40, alpha: 0.24 },
+  { x: 112, y: 36, r: 62, alpha: 0.42 },
+  { x: 338, y: 132, r: 48, alpha: 0.36 },
+  { x: 206, y: 262, r: 68, alpha: 0.34 },
+  { x: 430, y: 366, r: 54, alpha: 0.4 },
+  { x: 126, y: 498, r: 44, alpha: 0.36 },
+  { x: 304, y: 618, r: 64, alpha: 0.32 },
+  { x: 448, y: 704, r: 40, alpha: 0.38 },
 ]
 
 const STREAKS: readonly Streak[] = [

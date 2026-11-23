@@ -6,8 +6,12 @@ import { TUNING } from '../game/tuning'
 
 /** Instantâneo da mira, calculado pela cena; esta UI só desenha. */
 export interface AimReadout {
+  /** Posição real do dedo na tela (o puxão do estilingue). */
   pointerX: number
   pointerY: number
+  /** Direção normalizada do lançamento (oposta ao puxão). */
+  launchDirX: number
+  launchDirY: number
   /** 0..1 da barra de força. */
   ratio: number
   remainingMs: number
@@ -90,7 +94,7 @@ export class AimUi {
       .setScrollFactor(0)
 
     this.hint = scene.add
-      .text(0, 0, 'RELEASE TO FIRE', {
+      .text(0, 0, 'PULL BACK · RELEASE', {
         fontFamily: FONT_SANS,
         fontSize: '11px',
         color: CSS_PALETTE.inkDim,
@@ -182,36 +186,57 @@ export class AimUi {
     }
   }
 
-  /** Linha da bola ao ponteiro, limitada por `maxDrag` e com ponta de seta. */
+  /**
+   * Estilingue: a banda vai da bola até o dedo (puxão) e a flecha mostra o
+   * lançamento, no sentido oposto. As duas usam a mesma distância limitada.
+   */
   private drawAimLine(ballX: number, ballY: number, readout: AimReadout): void {
-    const dx = readout.pointerX - ballX
-    const dy = readout.pointerY - ballY
-    const distance = Math.hypot(dx, dy)
+    const pullX = readout.pointerX - ballX
+    const pullY = readout.pointerY - ballY
+    const pullDistance = Math.hypot(pullX, pullY)
     const limit = Math.max(0, readout.maxDrag)
+    const { width, height } = TUNING.world
+    const g = this.gfx
 
-    let dirX: number
-    let dirY: number
-    let length: number
-    if (distance < MIN_DRAG) {
-      // Ponteiro praticamente em cima da bola: reto para cima, nunca some.
-      dirX = 0
-      dirY = -1
-      length = Math.min(FALLBACK_LENGTH, limit)
-    } else {
-      dirX = dx / distance
-      dirY = dy / distance
-      length = Math.min(distance, limit)
+    // Banda do puxão: linha mais fraca, com um ponto no dedo.
+    if (pullDistance >= MIN_DRAG) {
+      const pullLength = Math.min(pullDistance, limit)
+      const pullEndX = clamp(
+        ballX + (pullX / pullDistance) * pullLength,
+        DRAW_MARGIN,
+        width - DRAW_MARGIN,
+      )
+      const pullEndY = clamp(
+        ballY + (pullY / pullDistance) * pullLength,
+        DRAW_MARGIN,
+        height - DRAW_MARGIN,
+      )
+      g.lineStyle(2, PALETTE.aimed, 0.35)
+      g.lineBetween(ballX, ballY, pullEndX, pullEndY)
+      g.fillStyle(PALETTE.aimed, 0.55)
+      g.fillCircle(pullEndX, pullEndY, 4)
     }
 
-    const { width, height } = TUNING.world
-    const endX = clamp(ballX + dirX * length, DRAW_MARGIN, width - DRAW_MARGIN)
-    const endY = clamp(ballY + dirY * length, DRAW_MARGIN, height - DRAW_MARGIN)
+    // Flecha do lançamento: direção oposta ao puxão; comprimento = força.
+    const arrowLength = Math.max(
+      Math.min(pullDistance, limit),
+      Math.min(FALLBACK_LENGTH, limit),
+    )
+    const endX = clamp(
+      ballX + readout.launchDirX * arrowLength,
+      DRAW_MARGIN,
+      width - DRAW_MARGIN,
+    )
+    const endY = clamp(
+      ballY + readout.launchDirY * arrowLength,
+      DRAW_MARGIN,
+      height - DRAW_MARGIN,
+    )
     const realDx = endX - ballX
     const realDy = endY - ballY
     if (Math.hypot(realDx, realDy) < 1) return
 
-    const g = this.gfx
-    g.lineStyle(3, PALETTE.aimed, 0.9)
+    g.lineStyle(3, PALETTE.aimed, 0.95)
     g.lineBetween(ballX, ballY, endX, endY)
 
     // Duas hastes para trás a partir da ponta, na direção efetiva do traço.

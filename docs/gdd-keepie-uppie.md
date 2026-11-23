@@ -80,9 +80,9 @@ Altitude em **metros** (contador de altura) + moedas coletadas. Best pessoal **l
 ### 3.7 Powerups do MVP1 (canal: pickups na fase — round 4)
 **Aimed Shot** (rounds 3–5):
 - Pickup **arma o próximo toque na bola** — sem prazo (padrão aplicado no round 6; alternativa "expira em X s" fica como variante de tuning).
-- No próximo toque (bola em queda), abre a **pausa de mira**: arrasto = ângulo + força (limites próprios, fora da faixa normal).
+- No próximo toque (bola em queda), abre a **pausa de mira**: o arrasto é um **estilingue** — o dedo puxa para trás e a bola sai no sentido **oposto** ao puxão; o comprimento do puxão vira força (limites próprios, fora da faixa normal).
 - **Janela: 2s (valor de TESTE).** Solta antes = dispara. Expira = dispara com a mira/força atuais; **se a força estiver muito baixa, aplica força média default** (a bola não pode só cair do timeout).
-- UI da mira: linha/indicador no próprio arrasto; o tempo visível (legibilidade).
+- UI da mira: banda do puxão até o dedo + flecha indicando o lançamento oposto; o tempo visível (legibilidade).
 
 **Magnet** (round 5):
 - Puxa moedas próximas por **15s** (valor de TESTE). Re-pegar **reinicia** pra 15s (não soma).

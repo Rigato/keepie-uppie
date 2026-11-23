@@ -627,17 +627,14 @@ export class PlayScene extends Phaser.Scene {
     const remaining = Math.max(0, this.aimEndsAt - now)
     const aim = resolveAim(this.ball, this.aimPointer, false)
 
-    const rawLength = Math.hypot(
-      this.aimPointer.x - this.ball.x,
-      this.aimPointer.y - this.ball.y,
-    )
-    const shownLength = Math.min(rawLength, TUNING.powerup.aimMaxDrag)
     const ballScreenX = this.ball.x
     const ballScreenY = this.ball.y - this.cameraY
 
     this.aimUi.update(ballScreenX, ballScreenY, {
-      pointerX: ballScreenX + aim.dir.x * shownLength,
-      pointerY: ballScreenY + aim.dir.y * shownLength,
+      pointerX: this.aimPointer.x,
+      pointerY: this.aimPointer.y - this.cameraY,
+      launchDirX: aim.dir.x,
+      launchDirY: aim.dir.y,
       ratio: aim.ratio,
       remainingMs: remaining,
       windowMs: TUNING.powerup.aimWindowMs,

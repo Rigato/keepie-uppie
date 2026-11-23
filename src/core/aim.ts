@@ -15,10 +15,12 @@ export interface AimResult {
 const MIN_UP = 0.12
 
 /**
- * Converte o arrasto (posição do ponteiro no mundo) em direção + força.
+ * Converte o puxão (posição do ponteiro no mundo) em direção + força.
+ * Esquema estilingue (Angry Birds): o dedo puxa para trás e a bola sai no
+ * sentido OPOSTO ao puxão. O comprimento do puxão vira força.
  * - Tap curto (< aimDeadZone) ou timeout com força muito baixa usam a força
  *   média default e tiro reto para cima: o jogador nunca é punido por hesitar.
- * - Arrasto longo satura a força; a direção é a do arrasto.
+ * - Puxão longo satura a força.
  */
 export function resolveAim(
   ball: Vec2,
@@ -26,9 +28,9 @@ export function resolveAim(
   timedOut = false,
 ): AimResult {
   const p = TUNING.powerup
-  const dx = pointer.x - ball.x
-  const dy = pointer.y - ball.y
-  const length = Math.hypot(dx, dy)
+  const pullX = pointer.x - ball.x
+  const pullY = pointer.y - ball.y
+  const length = Math.hypot(pullX, pullY)
 
   let dir: Vec2
   let ratio: number
@@ -37,7 +39,9 @@ export function resolveAim(
     dir = { x: 0, y: -1 }
     ratio = p.aimDefaultForceRatio
   } else {
-    dir = { x: dx / length, y: dy / length }
+    const dirX = -pullX / length
+    const dirY = -pullY / length
+    dir = { x: dirX === 0 ? 0 : dirX, y: dirY === 0 ? 0 : dirY }
     ratio = clamp(length / p.aimMaxDrag, 0, 1)
     if (timedOut && ratio < p.aimMinForceRatio) {
       ratio = p.aimDefaultForceRatio
