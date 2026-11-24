@@ -4,7 +4,7 @@
 |---|---|
 | **Data** | 24/11/2026 |
 | **Build** | `0.3.0-mvp1` · F7 |
-| **Pacote** | `release/keepie-uppie-v0.3.0-mvp1.zip` · 352,3 KiB · SHA-256 `0522d434ea1822aa332300d1d5471e82ca2e7f0363186d39781862b91d82ffdd` |
+| **Pacote** | `release/keepie-uppie-v0.3.0-mvp1.zip` · 352,3 KiB · SHA-256 `15fa146ef62a153f87492aab7132373c414e73c107bf115bd4c917baefb4068c` |
 | **URL** | https://rigato.github.io/keepie-uppie/ |
 
 ## O pedido
@@ -60,7 +60,7 @@ A lógica pura está em `src/core/consumables.ts` e `src/core/shop.ts` (compra, 
 - **Damping no browser**: 1800 → 1440 → 1152 → 922 → 737 → 590 → 472; razão 0,8 por quique.
 - **Fluxo da loja no browser**: 500 moedas → comprar net/magnet/chutao (380 restantes), equipar os 3 (loadout 3/3), voltar ao título, iniciar a run. Primeiro chute: **2750 u/s**, Magnet **15000 ms**, inventário de chutão/magnet zerado e loadout só com net. `die()` com a rede: `dead=false`, `vy=-1500`, bola a 180 u acima da linha, net consumida; segundo `die()` mata. Botão SHOP da morte abre a loja.
 - **Capturas 390×844**: título com a bola a 58 u, gameplay a 30 u, loja com os 3 cards e a tela de morte com SHOP.
-- Pacote validado: 3 arquivos, 1.276,8 KiB descompactado, **352,3 KiB** zipado, maior path 25.
+- Pacote validado: 3 arquivos, 1.276,8 KiB descompactado, **352,3 KiB** zipado, maior path 25. O pacote foi gerado com `GITHUB_SHA=$(git rev-parse HEAD)`; o label mostra `b3a0d98` e o `index-DBEYNAd7.js` é o mesmo do live, então a dívida antiga do `dev` não aparece neste ZIP.
 
 ## `[CONFIRMAR]` — pendente do seu teste
 
