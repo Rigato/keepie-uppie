@@ -11,7 +11,7 @@ export interface KickResult {
   /** Velocidade vertical aplicada (u/s, negativa para cima). */
   vy: number
   perfect: boolean
-  /** 0..1 entre piso e teto da faixa. */
+  /** 0..1 entre o piso e o teto real (inclui o boost profundo). */
   power: number
   /** Offset lateral normalizado -1..1 (esquerda negativa). */
   offset: number
@@ -46,6 +46,11 @@ export function clamp(value: number, min: number, max: number): number {
  * quanto mais baixo o toque, mais alto o chute. Tocar no ápice é uma
  * embaixadinha curta; esperar a queda é o risco que paga a altura.
  *
+ * A curva tem dois estágios: a curva-base (côncava) até 80% da tela e um
+ * boost profundo de 80% até a linha de morte, com ganho marginal crescente.
+ * O segundo estágio existe para o fundo não "normalizar": cada trecho abaixo
+ * de 80% rende mais que o anterior, em vez de menos.
+ *
  * O Perfect Touch soma um bônus pequeno de velocidade, mas não substitui o
  * timing: um perfect no ápice continua sendo um chute curto. O alvo de toque
  * (`touchRadius`) é maior que a área do ângulo (`angleRadius`): o jogador pode
@@ -75,7 +80,17 @@ export function computeKick(
   const charged = Math.pow(fallRatio, TUNING.kick.powerCurve)
   const baseSpeed =
     TUNING.kick.minSpeed + (TUNING.kick.maxSpeed - TUNING.kick.minSpeed) * charged
-  const speed = perfect ? baseSpeed + TUNING.perfect.speedBonus : baseSpeed
+
+  // Segundo estágio: só a partir de 80% da tela. O expoente >1 faz o ganho
+  // por trecho aumentar até o fundo em vez de achatar na curva-base.
+  const deepSpan = Math.max(1, TUNING.kick.deepFullDrop - TUNING.kick.deepStartDrop)
+  const deepRatio = clamp((fallDistance - TUNING.kick.deepStartDrop) / deepSpan, 0, 1)
+  const deepBoost =
+    TUNING.kick.deepBonus * Math.pow(deepRatio, TUNING.kick.deepPowerCurve)
+  const chargedSpeed = baseSpeed + deepBoost
+  const speed = perfect ? chargedSpeed + TUNING.perfect.speedBonus : chargedSpeed
+
+  const maxSpeed = TUNING.kick.maxSpeed + TUNING.kick.deepBonus
 
   const lateral = TUNING.kick.maxLateral * Math.abs(offset)
   const angleFactor = Math.sqrt(1 - lateral * lateral)
@@ -88,11 +103,7 @@ export function computeKick(
     vx,
     vy,
     perfect,
-    power: clamp(
-      (speed - TUNING.kick.minSpeed) / (TUNING.kick.maxSpeed - TUNING.kick.minSpeed),
-      0,
-      1,
-    ),
+    power: clamp((speed - TUNING.kick.minSpeed) / (maxSpeed - TUNING.kick.minSpeed), 0, 1),
     offset,
     arcTime: (2 * speed) / TUNING.physics.gravity,
   }

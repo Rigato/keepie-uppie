@@ -42,16 +42,19 @@ O pico visível do chute subiu **130 u (12% da tela)**. Num celular 390×844 (ca
 
 A curva nova, medida na **mesma posição de tela** (toque fora da janela central, sem o +60 do perfect):
 
+Posições de tela arredondadas (referência: 1080 u de altura). A 0.1.8 ainda não tinha o segundo estágio do fundo (ver `fix9-fundo-mais-forte.md`).
+
 | Toque na tela | Antes: queda → força | Agora: queda → força | Ganho |
 |---|---:|---:|---:|
 | 50% (meio) | 173 u → 845 u/s | 302 u → 1325 u/s | **+57%** |
-| 60% | 233 u → 945 u/s | 362 u → 1436 u/s | **+52%** |
-| 70% | 333 u → 1102 u/s | 462 u → 1610 u/s | **+46%** |
-| 80% | 433 u → 1253 u/s | 562 u → 1773 u/s | **+42%** |
-| 90% | 533 u → 1398 u/s | 662 u → 1928 u/s | **+38%** |
-| 100% (fundo) | 633 u → 1540 u/s | 762 u → 2075 u/s | **+35%** |
+| 56% | 233 u → 945 u/s | 362 u → 1436 u/s | **+52%** |
+| 65% | 333 u → 1102 u/s | 462 u → 1610 u/s | **+46%** |
+| 74% | 433 u → 1253 u/s | 562 u → 1773 u/s | **+42%** |
+| 83% | 533 u → 1398 u/s | 662 u → 1928 u/s | **+38%** |
+| 93% | 633 u → 1540 u/s | 762 u → 2075 u/s | **+35%** |
+| 100% (fundo) | 713 u → 1550 u/s | 842 u → 2189 u/s | **+41%** |
 
-O pior caso da metade de baixo é **+35%** (no fundo); no meio é +57%. Com o perfect, os dois lados somam +60 u/s; o ganho no fundo fica em +33% e no meio em +53% — ainda acima dos 30% pedidos.
+O pior caso da metade de baixo é **+35%** aos 93% da tela; no fundo absoluto (100%), +41%. No meio é +57%. Com o perfect, os dois lados somam +60 u/s; o ganho no pior ponto fica em +33% e no meio em +53% — ainda acima dos 30% pedidos.
 
 - O ápice continua um pulinho: 500 u/s, ~0,77 s de arco, ~5 m de ganho.
 - A queda cheia agora dá 2200 u/s (2260 no centro), ~3,5 s de arco e ~98 m de subida. É o "grande golpe" da run.

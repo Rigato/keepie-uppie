@@ -15,6 +15,26 @@ function falling(fallDistance: number, offset = 0) {
   )
 }
 
+/** Queda a partir de uma fração da tela, com o ápice acomodado pela catraca. */
+function dropAtScreen(screenRatio: number): number {
+  const apex = TUNING.world.height * TUNING.camera.ratchetAt
+  return Math.max(0, TUNING.world.height * screenRatio - apex)
+}
+
+/** Velocidade da curva-base, sem o boost profundo. */
+function baseSpeedAt(drop: number): number {
+  const ratio = Math.min(Math.max(drop / TUNING.kick.fullPowerDrop, 0), 1)
+  return (
+    TUNING.kick.minSpeed +
+    (TUNING.kick.maxSpeed - TUNING.kick.minSpeed) * Math.pow(ratio, TUNING.kick.powerCurve)
+  )
+}
+
+function speedAtScreen(screenRatio: number, offset = 24): number {
+  const kick = falling(dropAtScreen(screenRatio), offset)
+  return Math.hypot(kick.vx, kick.vy)
+}
+
 describe('computeKick', () => {
   it('acerta o centro: chute reto para cima', () => {
     const result = computeKick(ball({ vy: 900 }), { x: 270, y: 500 }, {
@@ -90,7 +110,7 @@ describe('computeKick', () => {
 
   it('toque no ápice é curto; queda cheia chega ao topo da faixa', () => {
     const apex = falling(0)
-    const full = falling(TUNING.kick.fullPowerDrop, 24)
+    const full = falling(TUNING.kick.deepFullDrop, 24)
     const apexSpeed = Math.hypot(apex.vx, apex.vy)
     const fullSpeed = Math.hypot(full.vx, full.vy)
 
@@ -99,13 +119,13 @@ describe('computeKick', () => {
     expect(apex.power).toBeLessThan(0.1)
     expect(apex.arcTime).toBeGreaterThanOrEqual(0.75)
     expect(apex.arcTime).toBeLessThanOrEqual(0.95)
-    expect(fullSpeed).toBeCloseTo(TUNING.kick.maxSpeed, 5)
-    expect(full.arcTime).toBeGreaterThanOrEqual(3.3)
-    expect(full.arcTime).toBeLessThanOrEqual(3.45)
+    expect(fullSpeed).toBeCloseTo(TUNING.kick.maxSpeed + TUNING.kick.deepBonus, 5)
+    expect(full.arcTime).toBeGreaterThanOrEqual(3.95)
+    expect(full.arcTime).toBeLessThanOrEqual(4.05)
   })
 
   it('a força cresce a cada trecho da queda', () => {
-    const drops = [0, 160, 320, 480, TUNING.kick.fullPowerDrop]
+    const drops = [0, 160, 320, 480, TUNING.kick.fullPowerDrop, TUNING.kick.deepFullDrop]
     const speeds = drops.map((drop) => {
       const kick = falling(drop)
       return Math.hypot(kick.vx, kick.vy)
@@ -115,11 +135,14 @@ describe('computeKick', () => {
     }
   })
 
-  it('a queda satura no teto da faixa', () => {
-    const full = falling(TUNING.kick.fullPowerDrop, 24)
-    const extra = falling(TUNING.kick.fullPowerDrop * 3, 24)
+  it('a queda satura no teto real, no fundo útil', () => {
+    const full = falling(TUNING.kick.deepFullDrop, 24)
+    const extra = falling(TUNING.kick.deepFullDrop * 3, 24)
     expect(Math.hypot(extra.vx, extra.vy)).toBeCloseTo(Math.hypot(full.vx, full.vy), 5)
-    expect(Math.hypot(extra.vx, extra.vy)).toBeCloseTo(TUNING.kick.maxSpeed, 5)
+    expect(Math.hypot(extra.vx, extra.vy)).toBeCloseTo(
+      TUNING.kick.maxSpeed + TUNING.kick.deepBonus,
+      5,
+    )
   })
 
   it('Perfect soma um bônus, mas não anula o timing', () => {
@@ -130,7 +153,7 @@ describe('computeKick', () => {
       fallDistance: 0,
     })
     const fullPerfect = computeKick(ball({ vy: 900 }), { x: 270 + 4, y: 500 }, {
-      fallDistance: TUNING.kick.fullPowerDrop,
+      fallDistance: TUNING.kick.deepFullDrop,
     })
 
     const normalSpeed = Math.hypot(apexNormal.vx, apexNormal.vy)
@@ -160,11 +183,11 @@ describe('computeKick', () => {
 
   it('arco do ápice é curto; arco da queda cheia fica na faixa alta', () => {
     const apex = falling(0)
-    const full = falling(TUNING.kick.fullPowerDrop, 24)
+    const full = falling(TUNING.kick.deepFullDrop, 24)
     expect(apex.arcTime).toBeGreaterThanOrEqual(0.75)
     expect(apex.arcTime).toBeLessThanOrEqual(0.95)
-    expect(full.arcTime).toBeGreaterThanOrEqual(3.3)
-    expect(full.arcTime).toBeLessThanOrEqual(3.45)
+    expect(full.arcTime).toBeGreaterThanOrEqual(3.95)
+    expect(full.arcTime).toBeLessThanOrEqual(4.05)
   })
 
   it('a metade de baixo da tela é ao menos 30% mais forte que a 0.1.7', () => {
@@ -185,9 +208,48 @@ describe('computeKick', () => {
     }
   })
 
+  it('o boost profundo começa aos 80% da tela e preserva o trecho aprovado', () => {
+    const H = TUNING.world.height
+    const apex = H * TUNING.camera.ratchetAt
+
+    expect((TUNING.kick.deepStartDrop + apex) / H).toBeCloseTo(0.8, 3)
+    // Até 80% a curva é exatamente a da 0.1.8; o boost só soma daqui para baixo.
+    for (const ratio of [0.3, 0.5, 0.65, 0.75, 0.8]) {
+      expect(speedAtScreen(ratio)).toBeCloseTo(baseSpeedAt(dropAtScreen(ratio)), 0)
+    }
+  })
+
+  it('o ganho marginal cresce de 80% para o fundo', () => {
+    const s80 = speedAtScreen(0.8)
+    const s90 = speedAtScreen(0.9)
+    const s100 = speedAtScreen(1)
+    const gained80to90 = s90 - s80
+    const gained90to100 = s100 - s90
+    expect(gained80to90).toBeGreaterThan(0)
+    expect(gained90to100).toBeGreaterThan(gained80to90)
+
+    // Em altura o efeito é ainda mais claro (h ∝ v²).
+    const height = (speed: number): number => (speed * speed) / (2 * TUNING.physics.gravity)
+    expect(height(s100) - height(s90)).toBeGreaterThan(height(s90) - height(s80))
+    expect(s100).toBeGreaterThanOrEqual(TUNING.kick.maxSpeed)
+  })
+
+  it('o power acompanha o boost até o fundo', () => {
+    const at80 = falling(dropAtScreen(0.8), 24)
+    const at100 = falling(dropAtScreen(1), 24)
+    const atEnd = falling(TUNING.kick.deepFullDrop, 24)
+
+    expect(at80.power).toBeGreaterThan(0.6)
+    expect(at80.power).toBeLessThan(0.7)
+    expect(at100.power).toBeGreaterThan(0.95)
+    expect(at100.power).toBeLessThan(1)
+    expect(atEnd.power).toBeCloseTo(1, 5)
+  })
+
   it('a força máxima é alcançável antes da linha de morte', () => {
     const fallRoom =
       TUNING.world.height * (1 - TUNING.camera.ratchetAt) + TUNING.ball.radius
-    expect(TUNING.kick.fullPowerDrop).toBeLessThanOrEqual(fallRoom)
+    expect(TUNING.kick.deepStartDrop).toBeLessThan(TUNING.kick.deepFullDrop)
+    expect(TUNING.kick.deepFullDrop).toBeLessThanOrEqual(fallRoom)
   })
 })

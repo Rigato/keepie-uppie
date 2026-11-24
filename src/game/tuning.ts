@@ -34,23 +34,37 @@ export const TUNING = {
      */
     minSpeed: 500,
     /**
-     * Teto da faixa normal: queda cheia, arco de ~3.4 s. O chute fundo precisa
-     * ser o "grande golpe" da run; o preço é o tempo de voo. [TESTE]
+     * Teto da curva-base: queda cheia, arco de ~3.4 s. A partir de 80% da tela
+     * o boost profundo soma por cima deste teto (até `deepBonus`). [TESTE]
      */
     maxSpeed: 2200,
     /**
-     * Queda (u) desde o ápice que satura a força. A velocidade de queda tem
-     * teto em `physics.maxFallSpeed`, então é a distância caída que continua
-     * recompensando o jogador que espera a bola descer mais. Com a catraca em
-     * 22%, a queda útil até a linha de morte é ~870 u: 850 é quase o fundo. [TESTE]
+     * Queda (u) desde o ápice em que a curva-base satura. A velocidade de
+     * queda tem teto em `physics.maxFallSpeed`, então é a distância caída que
+     * continua recompensando quem espera. Com a catraca em 22%, a queda útil
+     * até a linha de morte é ~872 u: 850 é quase o fundo. [TESTE]
      */
     fullPowerDrop: 850,
     /**
-     * Expoente da curva de queda (<1). A metade de baixo da tela precisa ser
-     * bem mais forte que a de cima (+30% ou mais em relação à 0.1.7), então a
-     * curva entrega boa parte da força cedo e ainda cresce até o fundo. [TESTE]
+     * Expoente da curva-base (<1). Entrega boa parte da força cedo e ainda
+     * cresce até 80%; é o trecho aprovado na 0.1.8 e não muda aqui. [TESTE]
      */
     powerCurve: 0.7,
+    /**
+     * Segundo estágio do fundo: de 80% da tela (626 u com o ápice em 22%) até
+     * a linha de morte (872 u), a força ganha um boost com ganho marginal
+     * crescente. Sem isso, cada trecho abaixo de 60–70% rendia menos que o
+     * anterior e o fundo parecia "normalizado". A faixa até 80% não muda. [TESTE]
+     */
+    deepStartDrop: 626,
+    deepFullDrop: 872,
+    /**
+     * Velocidade somada no fundo útil, acima do teto da curva-base. O chute no
+     * fundo chega a 2600 u/s (2660 no perfect) e vira o grande golpe da run. [TESTE]
+     */
+    deepBonus: 400,
+    /** Expoente do boost profundo (>1): o ganho cresce a cada trecho do fundo. [TESTE] */
+    deepPowerCurve: 1.3,
     /** Componente lateral máxima no toque na borda. */
     maxLateral: 0.75,
     /** Janela central para o Perfect Touch, em fração do raio de ângulo. [TESTE] */
@@ -165,8 +179,8 @@ export const TUNING = {
     ringCoinBurst: 8,
     springWidth: 70,
     springHeight: 18,
-    /** Recalibrada para manter o boost acima do chute máximo na câmera nova. */
-    springLaunchSpeed: 2450,
+    /** Recalibrada para continuar acima do chute máximo com o boost profundo. */
+    springLaunchSpeed: 2850,
     springCooldownMs: 350,
     pickupRadius: 21,
   },
@@ -201,7 +215,7 @@ export const TUNING = {
     aimDeadZone: 24,
     /** Faixa de velocidade do tiro mirado, fora da faixa normal (recalibrada com g=1300). */
     aimMinSpeed: 1200,
-    aimMaxSpeed: 2500,
+    aimMaxSpeed: 3000,
     /** Duração do Magnet. [TESTE] */
     magnetDurationMs: 15000,
     /** Raio de puxão (−20% da calibração anterior); a aura acompanha. [TESTE] */
