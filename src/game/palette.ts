@@ -8,6 +8,10 @@ export const PALETTE = {
   accent: 0x0b7a70,
   ball: 0xf5c542,
   ballShade: 0x9a5c0a,
+  /** Bola de futebol: base clara, gomos escuros e costura. */
+  ballBase: 0xf8f4e8,
+  ballPatch: 0x1a2a3d,
+  ballSeam: 0xd6e2ec,
   wall: 0xa3c2d9,
   danger: 0xd64545,
   hard: 0x3f5f82,

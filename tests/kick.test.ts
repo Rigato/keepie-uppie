@@ -181,6 +181,36 @@ describe('computeKick', () => {
     expect(Math.hypot(result.vx, result.vy)).toBeCloseTo(expected, 5)
   })
 
+  it('overrideSpeed define o Chutão e o Perfect soma o bônus', () => {
+    const chutao = computeKick(ball({ vy: 900 }), { x: 270 + 20, y: 500 }, {
+      fallDistance: 0,
+      overrideSpeed: TUNING.consumable.chutaoSpeed,
+    })
+    expect(Math.hypot(chutao.vx, chutao.vy)).toBeCloseTo(
+      TUNING.consumable.chutaoSpeed,
+      5,
+    )
+    expect(chutao.power).toBe(1)
+    expect(chutao.arcTime).toBeCloseTo(
+      (2 * TUNING.consumable.chutaoSpeed) / TUNING.physics.gravity,
+      5,
+    )
+
+    const perfect = computeKick(ball({ vy: 900 }), { x: 270 + 4, y: 500 }, {
+      fallDistance: 0,
+      overrideSpeed: TUNING.consumable.chutaoSpeed,
+    })
+    expect(perfect.perfect).toBe(true)
+    expect(Math.hypot(perfect.vx, perfect.vy)).toBeCloseTo(
+      TUNING.consumable.chutaoSpeed + TUNING.perfect.speedBonus,
+      5,
+    )
+    // O Chutão fica abaixo da mola (2850) mesmo com Perfect.
+    expect(Math.hypot(perfect.vx, perfect.vy)).toBeLessThan(
+      TUNING.collect.springLaunchSpeed,
+    )
+  })
+
   it('arco do ápice é curto; arco da queda cheia fica na faixa alta', () => {
     const apex = falling(0)
     const full = falling(TUNING.kick.deepFullDrop, 24)

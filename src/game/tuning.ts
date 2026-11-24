@@ -16,7 +16,12 @@ export const TUNING = {
   physics: {
     /** Queda mais flutuante: o arco normal cabe em 1.5–2.5 s sem virar projétil. */
     gravity: 1300, // u/s²
-    wallRestitution: 1,
+    /**
+     * Quique nas paredes laterais. Abaixo de 1, cada quique devolve a bola
+     * mais devagar: evita o efeito pinball de uma bola quase horizontal
+     * quicando sem parar entre as bordas. [TESTE]
+     */
+    wallRestitution: 0.8,
     /** Quantos unidades de mundo equivalem a 1 metro de altitude. */
     pxPerMeter: 20,
     /**
@@ -238,6 +243,21 @@ export const TUNING = {
     /** Raio de puxão (−20% da calibração anterior); a aura acompanha. [TESTE] */
     magnetRadius: 144,
     magnetPullSpeed: 620,
+  },
+
+  consumable: {
+    /**
+     * Impulso vertical da rede de proteção ao salvar a bola na linha de morte.
+     * Modesto de propósito: é uma segunda chance, não um atalho de altitude. [TESTE]
+     */
+    netLaunchSpeed: 1500,
+    /** Quanto acima da linha de morte a bola reaparece depois da rede. [TESTE] */
+    netRescueY: 180,
+    /**
+     * Velocidade do primeiro chute quando o Chutão está equipado. Fica acima do
+     * chute de fundo (2600) e abaixo da mola (2850); o Perfect soma +60. [TESTE]
+     */
+    chutaoSpeed: 2750,
   },
 
   streak: {

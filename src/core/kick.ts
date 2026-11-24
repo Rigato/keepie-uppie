@@ -26,6 +26,12 @@ export interface KickOptions {
    * bônus cedo demais, então a altura perdida continua contando.
    */
   fallDistance?: number
+  /**
+   * Velocidade-base fixa (u/s) antes do bônus de Perfect. Usada por
+   * consumíveis como o Chutão, que não dependem da queda. Quando ausente, a
+   * curva normal de força é usada.
+   */
+  overrideSpeed?: number
   touchRadius?: number
   angleRadius?: number
 }
@@ -64,6 +70,7 @@ export function computeKick(
 ): KickResult {
   const {
     fallDistance = 0,
+    overrideSpeed,
     touchRadius = TUNING.kick.touchRadius,
     angleRadius = TUNING.kick.angleRadius,
   } = options
@@ -87,10 +94,13 @@ export function computeKick(
   const deepRatio = clamp((fallDistance - TUNING.kick.deepStartDrop) / deepSpan, 0, 1)
   const deepBoost =
     TUNING.kick.deepBonus * Math.pow(deepRatio, TUNING.kick.deepPowerCurve)
-  const chargedSpeed = baseSpeed + deepBoost
+  const chargedSpeed = overrideSpeed ?? baseSpeed + deepBoost
   const speed = perfect ? chargedSpeed + TUNING.perfect.speedBonus : chargedSpeed
 
-  const maxSpeed = TUNING.kick.maxSpeed + TUNING.kick.deepBonus
+  const maxSpeed = Math.max(
+    TUNING.kick.maxSpeed + TUNING.kick.deepBonus,
+    chargedSpeed,
+  )
 
   const lateral = TUNING.kick.maxLateral * Math.abs(offset)
   const angleFactor = Math.sqrt(1 - lateral * lateral)

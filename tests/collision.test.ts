@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { circleCircleHit, circleRectHit, reflectVelocity } from '../src/core/collision'
+import { circleCircleHit, circleRectHit, reflectVelocity, wallBounce } from '../src/core/collision'
 
 const bar = { x: 100, y: 200, width: 200, height: 20 }
 
@@ -68,5 +68,30 @@ describe('reflectVelocity', () => {
   it('aplica restituição', () => {
     const v = reflectVelocity(0, 100, { x: 0, y: -1 }, 0.9)
     expect(v.vy).toBeCloseTo(-90, 5)
+  })
+})
+
+describe('wallBounce', () => {
+  it('inverte o sentido e aplica a restituição', () => {
+    expect(wallBounce(600, 'left', 0.8)).toBeCloseTo(480, 5)
+    expect(wallBounce(-600, 'right', 0.8)).toBeCloseTo(-480, 5)
+  })
+
+  it('preserva a velocidade quando a restituição é 1', () => {
+    expect(wallBounce(-900, 'left', 1)).toBeCloseTo(900, 5)
+    expect(wallBounce(900, 'right', 1)).toBeCloseTo(-900, 5)
+  })
+
+  it('amortece quiques encadeados até a bola parar de pinballar', () => {
+    const restitution = 0.8
+    let vx = 1800
+    for (let i = 0; i < 8; i += 1) {
+      vx = wallBounce(vx, i % 2 === 0 ? 'left' : 'right', restitution)
+      expect(Math.abs(vx)).toBeLessThan(1800)
+    }
+    // Depois de 4 quiques, a bola ainda tem ~41% da velocidade; depois de 8,
+    // ~17%. O suficiente para continuar viva sem atravessar a tela de graça.
+    expect(Math.abs(vx) / 1800).toBeCloseTo(restitution ** 8, 5)
+    expect(Math.abs(vx) / 1800).toBeLessThan(0.2)
   })
 })

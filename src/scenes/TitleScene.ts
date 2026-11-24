@@ -6,6 +6,7 @@ import { CSS_PALETTE, PALETTE } from '../game/palette'
 import { TUNING } from '../game/tuning'
 import type { PlatformService } from '../platform/types'
 import { formatMeters, type SaveV1 } from '../platform/storage'
+import { createBallView } from '../ui/ball'
 import { Parallax } from '../ui/parallax'
 
 export class BootScene extends Phaser.Scene {
@@ -33,6 +34,7 @@ export class TitleScene extends Phaser.Scene {
   create(): void {
     const { width, height } = TUNING.world
     const save = this.registry.get('save') as SaveV1
+    this.starting = false
 
     const g = this.add.graphics().setDepth(-2)
     g.fillGradientStyle(PALETTE.bgSoft, PALETTE.bgSoft, PALETTE.bg, PALETTE.bg, 1)
@@ -42,9 +44,7 @@ export class TitleScene extends Phaser.Scene {
     this.parallax.update(0, this.time.now)
 
     this.add.circle(width / 2, height * 0.24, 132, PALETTE.accent, 0.08)
-    this.add.circle(width / 2, height * 0.24, 58, PALETTE.ball)
-    this.add.circle(width / 2, height * 0.24, 58).setStrokeStyle(3, PALETTE.ink, 0.24)
-    this.add.circle(width / 2 - 18, height * 0.24 - 18, 13, 0xffffff, 0.36)
+    createBallView(this, 58).setPosition(width / 2, height * 0.24)
 
     this.add
       .text(width / 2, height * 0.39, 'KEEPIE', {
@@ -113,6 +113,42 @@ export class TitleScene extends Phaser.Scene {
       .setLetterSpacing(2)
       .setAlpha(0.9)
 
+    // Loja: botão próprio; tocar fora dele continua iniciando a run.
+    const shopY = height * 0.905
+    const shopWidth = 190
+    const shopHeight = 54
+    const shopBg = this.add.graphics()
+    shopBg.fillStyle(PALETTE.bgSoft, 0.9)
+    shopBg.fillRoundedRect(
+      width / 2 - shopWidth / 2,
+      shopY - shopHeight / 2,
+      shopWidth,
+      shopHeight,
+      10,
+    )
+    shopBg.lineStyle(2, PALETTE.accent, 0.85)
+    shopBg.strokeRoundedRect(
+      width / 2 - shopWidth / 2,
+      shopY - shopHeight / 2,
+      shopWidth,
+      shopHeight,
+      10,
+    )
+    this.add
+      .text(width / 2, shopY, 'SHOP', {
+        fontFamily: FONT_SANS,
+        fontSize: '18px',
+        color: CSS_PALETTE.ink,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setLetterSpacing(3)
+    const shopZone = this.add
+      .zone(width / 2, shopY, shopWidth, shopHeight)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+    shopZone.on('pointerup', () => this.openShop())
+
     this.add
       .text(width / 2, 26, BUILD_LABEL, {
         fontFamily: FONT_SANS,
@@ -125,7 +161,13 @@ export class TitleScene extends Phaser.Scene {
     const platform = this.registry.get('platform') as PlatformService
     platform.markGameReady()
 
-    this.input.on('pointerdown', () => this.startRun())
+    this.input.on(
+      'pointerdown',
+      (_pointer: Phaser.Input.Pointer, currentlyOver: Phaser.GameObjects.GameObject[]) => {
+        if (currentlyOver.length > 0) return
+        this.startRun()
+      },
+    )
     this.input.keyboard?.on('keydown-SPACE', () => this.startRun())
     this.input.keyboard?.on('keydown-ENTER', () => this.startRun())
   }
@@ -140,5 +182,11 @@ export class TitleScene extends Phaser.Scene {
     void audio.unlock()
     audio.play('ui')
     this.scene.start('Play')
+  }
+
+  private openShop(): void {
+    if (this.starting) return
+    audio.play('ui')
+    this.scene.start('Shop')
   }
 }

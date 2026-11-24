@@ -1,12 +1,14 @@
 import Phaser from 'phaser'
 import { metersFromTop, ratchetCameraY, smoothCameraY } from '../core/camera'
-import { reflectVelocity } from '../core/collision'
+import { reflectVelocity, wallBounce } from '../core/collision'
 import { resolveAim } from '../core/aim'
 import { difficultyStageAt, fallSpeedLimitAt } from '../core/difficulty'
 import { InteractiveSpawner } from '../core/interactive-spawner'
 import { computeKick, isInsideBall, type KickResult } from '../core/kick'
 import { ObstacleSpawner } from '../core/spawner'
 import { StreakTracker, labelForCount, type StreakLabel } from '../core/streak'
+import { consume, equippedIds } from '../core/shop'
+import type { ConsumableId } from '../core/consumables'
 import { audio } from '../fx/audio'
 import { BUILD_LABEL } from '../game/build-info'
 import { FONT_MONO, FONT_SANS } from '../game/config'
@@ -16,6 +18,7 @@ import { gameEvents } from '../game/events'
 import type { BallLike } from '../game/contracts'
 import { CSS_PALETTE, PALETTE } from '../game/palette'
 import { TUNING } from '../game/tuning'
+import { createBallView } from '../ui/ball'
 import { createObstacle, type ObstacleContact, type ObstacleInstance } from '../objects/obstacles'
 import {
   createInteractive,
@@ -88,6 +91,16 @@ export class PlayScene extends Phaser.Scene {
   private kickRing!: Phaser.GameObjects.Container
   /** Toque que chegou um pouco antes do ápice; dispara quando a bola fica chutável. */
   private bufferedTap: { x: number; y: number; until: number; aimed: boolean } | null = null
+  /** Consumíveis equipados e ainda disponíveis nesta run. */
+  private runItems = new Set<ConsumableId>()
+  /** Chutão: o primeiro chute válido da run vira um chute de 2750 u/s. */
+  private chutaoReady = false
+  /** Rede de proteção: salva a bola uma vez ao cruzar a linha de morte. */
+  private netReady = false
+  /** Ímã inicial: começa no primeiro toque, quando a run de fato começa. */
+  private magnetStartReady = false
+  /** Área do botão SHOP na tela de morte, em coordenadas de tela. */
+  private deathShopRect = new Phaser.Geom.Rectangle(0, 0, 0, 0)
 
   constructor() {
     super('Play')
@@ -127,6 +140,12 @@ export class PlayScene extends Phaser.Scene {
     this.trailIndex = 0
     this.trailAt = 0
     this.bufferedTap = null
+    const equipped = equippedIds(save)
+    this.runItems = new Set(equipped)
+    this.chutaoReady = this.runItems.has('chutao')
+    this.netReady = this.runItems.has('net')
+    this.magnetStartReady = this.runItems.has('magnet')
+    this.deathShopRect.setTo(0, 0, 0, 0)
     DEBUG_STATE.powerup = '—'
 
     this.cameras.main.setScroll(0, 0)
@@ -151,12 +170,11 @@ export class PlayScene extends Phaser.Scene {
     )
     scrim.fillRect(0, 0, width, 170)
 
+    // Bola de futebol: textura gerada (icosaedro truncado) + halo dourado que
+    // mantém a leitura da bola contra o céu claro.
     this.ballView = this.add.container(this.ball.x, this.ball.y).setDepth(10)
     const glow = this.add.circle(0, 0, TUNING.ball.radius + 18, PALETTE.ball, 0.09)
-    const body = this.add.circle(0, 0, TUNING.ball.radius, PALETTE.ball)
-    const rim = this.add.circle(0, 0, TUNING.ball.radius).setStrokeStyle(3, PALETTE.ink, 0.28)
-    const shine = this.add.circle(-10, -10, 8, 0xffffff, 0.32)
-    this.ballView.add([glow, body, rim, shine])
+    this.ballView.add([glow, createBallView(this, TUNING.ball.radius)])
 
     // Área de chute: anel de pontos opcional (tuning com `?ring=1`).
     const kickDots: Phaser.GameObjects.Arc[] = []
@@ -234,7 +252,9 @@ export class PlayScene extends Phaser.Scene {
     // Rastro curto: leitura de velocidade sem custo por frame.
     for (let i = 0; i < 6; i += 1) {
       this.trail.push(
-        this.add.circle(0, 0, TUNING.ball.radius * 0.75, PALETTE.ball, 0).setDepth(9),
+        this.add
+          .circle(0, 0, TUNING.ball.radius * 0.75, PALETTE.ballPatch, 0)
+          .setDepth(9),
       )
     }
 
@@ -353,11 +373,11 @@ export class PlayScene extends Phaser.Scene {
 
     if (b.x - r < wall) {
       b.x = wall + r
-      b.vx = Math.abs(b.vx) * TUNING.physics.wallRestitution
+      b.vx = wallBounce(b.vx, 'left', TUNING.physics.wallRestitution)
       audio.play('wall', { pitch: 0.9 })
     } else if (b.x + r > TUNING.world.width - wall) {
       b.x = TUNING.world.width - wall - r
-      b.vx = -Math.abs(b.vx) * TUNING.physics.wallRestitution
+      b.vx = wallBounce(b.vx, 'right', TUNING.physics.wallRestitution)
       audio.play('wall', { pitch: 1.1 })
     }
 
@@ -570,14 +590,7 @@ export class PlayScene extends Phaser.Scene {
       case 'pickup': {
         audio.play('pickup')
         if (contact.pickup === 'magnet') {
-          this.magnetEndsAt = this.time.now + TUNING.powerup.magnetDurationMs
-          this.magnetHudAt = 0
-          this.magnetAura.setVisible(true)
-          this.powerupHud.setMagnet(
-            true,
-            TUNING.powerup.magnetDurationMs,
-            TUNING.powerup.magnetDurationMs,
-          )
+          this.activateMagnet()
         } else if (contact.pickup === 'aimed') {
           this.aimedArmed = true
           this.powerupHud.setAimed(true)
@@ -645,7 +658,11 @@ export class PlayScene extends Phaser.Scene {
 
   private handlePointerDown(x: number, y: number): void {
     if (this.dead) {
-      if (this.retryReady) this.retry()
+      if (this.retryReady) {
+        const screenY = y - this.cameraY
+        if (Phaser.Geom.Rectangle.Contains(this.deathShopRect, x, screenY)) return
+        this.retry()
+      }
       return
     }
     if (this.aiming) return
@@ -733,6 +750,63 @@ export class PlayScene extends Phaser.Scene {
     this.minY = this.ball.y
     this.hint?.setVisible(false)
     this.hint = undefined
+    if (this.magnetStartReady) {
+      this.magnetStartReady = false
+      this.consumeRunItem('magnet')
+      this.activateMagnet()
+    }
+  }
+
+  private activateMagnet(): void {
+    this.magnetEndsAt = this.time.now + TUNING.powerup.magnetDurationMs
+    this.magnetHudAt = 0
+    this.magnetAura.setVisible(true)
+    this.powerupHud.setMagnet(
+      true,
+      TUNING.powerup.magnetDurationMs,
+      TUNING.powerup.magnetDurationMs,
+    )
+  }
+
+  /** Gasta uma unidade equipada e persiste; o item some desta run. */
+  private consumeRunItem(id: ConsumableId): void {
+    this.runItems.delete(id)
+    if (id === 'net') this.netReady = false
+    if (id === 'chutao') this.chutaoReady = false
+    if (id === 'magnet') this.magnetStartReady = false
+
+    const save = this.registry.get('save') as SaveV1
+    const next = consume(save, id)
+    if (next === save) return
+    this.registry.set('save', next)
+    const store = this.registry.get('saveStore') as SaveStore | undefined
+    if (store) void store.save(next)
+  }
+
+  /**
+   * Chutão: o primeiro toque válido da run vira um chute de `chutaoSpeed`,
+   * mantendo o ângulo do ponto de toque. Whiff e toque antes do ápice não
+   * gastam a carga; só um chute de verdade consome.
+   */
+  private computeTapKick(x: number, y: number): KickResult {
+    const chutao = this.chutaoReady
+    const result = computeKick(this.ball, { x, y }, {
+      fallDistance: this.fallDistance(),
+      overrideSpeed: chutao ? TUNING.consumable.chutaoSpeed : undefined,
+    })
+    if (result.kind === 'kick' && chutao) {
+      this.chutaoReady = false
+      this.consumeRunItem('chutao')
+      this.showChutao()
+    }
+    return result
+  }
+
+  private showChutao(): void {
+    this.popLabel('CHUTÃO!', CSS_PALETTE.accent, true, 100)
+    audio.play('perfect', { pitch: 0.8, volume: 1 })
+    this.cameras.main.shake(120, 0.007)
+    this.cameras.main.flash(90, 255, 245, 210)
   }
 
   private syncView(): void {
@@ -764,7 +838,7 @@ export class PlayScene extends Phaser.Scene {
     }
     this.bufferedTap = null
 
-    const result = computeKick(this.ball, { x, y }, { fallDistance: this.fallDistance() })
+    const result = this.computeTapKick(x, y)
     if (result.kind === 'whiff') {
       if (result.reason === 'miss') {
         audio.play('whiff')
@@ -800,11 +874,21 @@ export class PlayScene extends Phaser.Scene {
       return
     }
 
-    const result = computeKick(
-      this.ball,
-      { x: buffered.x, y: buffered.y },
-      { fallDistance: this.fallDistance() },
-    )
+    // O toque guardado era para abrir a mira: não passa pela curva de chute
+    // (nem consome Chutão) antes de armar o estilingue.
+    if (buffered.aimed && this.aimedArmed) {
+      const touch = { ...this.ball, r: TUNING.kick.touchRadius }
+      if (!isInsideBall(touch, { x: buffered.x, y: buffered.y })) {
+        this.bufferedTap = null
+        return
+      }
+      if (this.ball.vy < -TUNING.kick.apexTolerance) return
+      this.bufferedTap = null
+      this.beginAim(buffered.x, buffered.y)
+      return
+    }
+
+    const result = this.computeTapKick(buffered.x, buffered.y)
     if (result.kind !== 'kick') {
       // Se a bola se afastou do toque guardado, desiste em vez de chutar longe.
       if (result.reason === 'miss') this.bufferedTap = null
@@ -812,10 +896,6 @@ export class PlayScene extends Phaser.Scene {
     }
 
     this.bufferedTap = null
-    if (buffered.aimed && this.aimedArmed) {
-      this.beginAim(buffered.x, buffered.y)
-      return
-    }
     this.applyKick(result)
   }
 
@@ -1031,6 +1111,12 @@ export class PlayScene extends Phaser.Scene {
 
   private die(): void {
     if (this.dead) return
+    // Rede de proteção: só vale depois de a run ter começado. Se o jogador
+    // nunca tocou, não gasta o consumível.
+    if (this.netReady && this.started) {
+      this.saveWithNet()
+      return
+    }
     this.dead = true
     this.aiming = false
     this.bufferedTap = null
@@ -1051,6 +1137,20 @@ export class PlayScene extends Phaser.Scene {
     this.wasBest = this.meters > save.bestMeters
     this.persistBest()
     this.time.delayedCall(TUNING.run.deathDelayMs, () => this.showDeath())
+  }
+
+  private saveWithNet(): void {
+    this.netReady = false
+    this.consumeRunItem('net')
+    this.ball.x = TUNING.world.width / 2
+    this.ball.y = this.cameraY + TUNING.world.height - TUNING.consumable.netRescueY
+    this.ball.vx = 0
+    this.ball.vy = -TUNING.consumable.netLaunchSpeed
+    this.arcApexY = this.ball.y
+    this.bufferedTap = null
+    this.popLabel('SAVED!', CSS_PALETTE.accent, true, 90)
+    audio.play('fever', { pitch: 1.1, volume: 0.8 })
+    this.cameras.main.flash(140, 232, 238, 252)
   }
 
   private persistBest(): void {
@@ -1074,7 +1174,7 @@ export class PlayScene extends Phaser.Scene {
     const isBest = this.wasBest
 
     const overlay = this.add.container(0, 0).setDepth(50).setScrollFactor(0)
-    const dim = this.add.rectangle(0, 0, width, height, PALETTE.bgSoft, 0.9).setOrigin(0)
+    const dim = this.add.rectangle(0, 0, width, height, PALETTE.bgSoft, 0.98).setOrigin(0)
     const title = this.add
       .text(width / 2, height * 0.3, 'GAME OVER', {
         fontFamily: FONT_SANS,
@@ -1126,13 +1226,62 @@ export class PlayScene extends Phaser.Scene {
       ease: 'Sine.inOut',
     })
 
-    overlay.add([dim, title, score, coins, best, retry])
+    // Loja na tela de morte: as moedas da run já foram persistidas em die().
+    const shopY = height * 0.8
+    const shopWidth = 180
+    const shopHeight = 50
+    const shopBg = this.add.graphics()
+    shopBg.fillStyle(PALETTE.bgSoft, 0.95)
+    shopBg.fillRoundedRect(
+      width / 2 - shopWidth / 2,
+      shopY - shopHeight / 2,
+      shopWidth,
+      shopHeight,
+      10,
+    )
+    shopBg.lineStyle(2, PALETTE.accent, 0.9)
+    shopBg.strokeRoundedRect(
+      width / 2 - shopWidth / 2,
+      shopY - shopHeight / 2,
+      shopWidth,
+      shopHeight,
+      10,
+    )
+    const shopText = this.add
+      .text(width / 2, shopY, 'SHOP', {
+        fontFamily: FONT_SANS,
+        fontSize: '18px',
+        color: CSS_PALETTE.ink,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setLetterSpacing(3)
+    const shopZone = this.add
+      .zone(width / 2, shopY, shopWidth, shopHeight)
+      .setScrollFactor(0)
+      .setDepth(51)
+      .setInteractive({ useHandCursor: true })
+    shopZone.on('pointerup', () => {
+      if (!this.retryReady) return
+      audio.play('ui')
+      this.scene.start('Shop')
+    })
+    this.deathShopRect.setTo(
+      width / 2 - shopWidth / 2,
+      shopY - shopHeight / 2,
+      shopWidth,
+      shopHeight,
+    )
+
+    overlay.add([dim, title, score, coins, best, retry, shopBg, shopText])
     dim.setScrollFactor(0)
     title.setScrollFactor(0)
     score.setScrollFactor(0)
     coins.setScrollFactor(0)
     best.setScrollFactor(0)
     retry.setScrollFactor(0)
+    shopBg.setScrollFactor(0)
+    shopText.setScrollFactor(0)
     this.retryReady = true
 
     if (isBest) {

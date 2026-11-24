@@ -103,3 +103,17 @@ export function reflectVelocity(
     vy: (vy - 2 * dot * normal.y) * restitution,
   }
 }
+
+/**
+ * Quique em parede vertical. Devolve a velocidade horizontal com o sentido
+ * trocado e amortecida por `restitution`. Com restituição < 1, quiques
+ * encadeados perdem energia e a bola deixa de "pinballar" entre as bordas.
+ */
+export function wallBounce(
+  vx: number,
+  side: 'left' | 'right',
+  restitution = 1,
+): number {
+  const magnitude = Math.abs(vx) * restitution
+  return side === 'left' ? magnitude : -magnitude
+}

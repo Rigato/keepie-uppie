@@ -56,11 +56,11 @@ Toque que erra a bola **não faz nada**: sem chute, sem penalidade, a bola segue
 - **Câmera:** catraca — sobe com a bola, **nunca desce**. O pico do chute chega perto do topo da tela (a câmera acompanha a subida); a altura visível é parte da recompensa da queda, não só o contador. `[posição do ápice: teste]`
 - **Linha de morte:** o fundo da tela; sobe com o progresso. Bola cruza o fundo = fim da run (rounds 1–2).
 - **Ritmo progressivo:** a cada 500 m de altitude de pico, o teto de queda sobe 75 u/s, de 900 até 1200 u/s; no limite a janela de toque fica em ~0,125 s. O aviso `FASTER FALLS` marca cada degrau e o ritmo reseta a cada run. A regra de chute não muda — o mesmo toque rende a mesma força; o que encolhe é o tempo de decisão. `[degraus: teste]`
-- **Paredes laterais:** a bola **quica** nas bordas da tela; sem wrap-around.
+- **Paredes laterais:** a bola **quica** nas bordas da tela; sem wrap-around. O quique devolve 80% da velocidade lateral (`wallRestitution`): quiques encadeados perdem energia em vez de virar pinball, e a bola continua recuperável com um toque. `[damping: teste]`
 - **Perfect Touch (C1):** janela central da bola — acertar = "PERFECT", **bônus pequeno de velocidade somado ao chute** + celebração curta. O perfect não substitui o timing: no ápice, o chute continua curto. `[janela e bônus: teste]`
 
 ### 3.4 Placar
-Altitude em **metros** (contador de altura) + moedas coletadas. Best pessoal **local** no dispositivo (rounds 3–4). Runs com save contarão como normais (decidido — save não existe no MVP1).
+Altitude em **metros** (contador de altura) + moedas coletadas. Best pessoal **local** no dispositivo (rounds 3–4). Runs salvas pela Safety Net contam como normais (regra decidida nos rounds 3–4; a rede entrou na 0.3.0).
 
 ### 3.5 Obstáculos do MVP1 (perturbam, não matam)
 | Tipo | Efeito | Feedback exigido |
@@ -75,7 +75,7 @@ Altitude em **metros** (contador de altura) + moedas coletadas. Best pessoal **l
 ### 3.6 Interativos do MVP1
 - **Rings (argolas):** a bola atravessa = burst de moedas. Dá propósito positivo ao ângulo.
 - **Springs (molas):** lançam a bola alto **sem consumir chute** — rota planejada, atalho ousado (não elevador: posicionamento ganha o valor).
-- **Coins (moedas):** coleta por contato; posicionadas em rota ousada. **Sem sink no MVP1** (round 6).
+- **Coins (moedas):** coleta por contato; posicionadas em rota ousada. **Sink desde a 0.3.0:** a loja de consumíveis (ver 3.11).
 - **Pickups de powerup:** spawnam como itens de rota (pegar = decisão de desvio).
 
 ### 3.7 Powerups do MVP1 (canal: pickups na fase — round 4)
@@ -94,7 +94,7 @@ Altitude em **metros** (contador de altura) + moedas coletadas. Best pessoal **l
 - **Streak (combo de toques limpos):** chutes limpos consecutivos sobem multiplicador com **rótulos escalonados em EN** (padrão GOOD → SWEET → EXTREME do Icy Tower, nomes finais `[A Definir — tuning]`). No topo: **febre** — moedas valem dobrado por um tempo (padrão fever do Tiny Wings). Quebra em **whiff** (proposta base); se colisão com obstáculo também quebra = `[variante de tuning a testar]`.
 
 ### 3.9 Feedback e legibilidade (pilar 4)
-Nenhuma interação silenciosa: chute (som + squash proporcionais à força — fraco é leve, forte é pesado), desvio (traço + som), drenagem (deformação), estilhaço (partículas), powerup (anúncio + ícone de estado ativo), febre (mudança perceptível do estado). O degrau de ritmo também se anuncia (`FASTER FALLS`), para a dificuldade não parecer bug. Tempo de leitura em toda ativação.
+Nenhuma interação silenciosa: chute (som + squash proporcionais à força — fraco é leve, forte é pesado), desvio (traço + som), drenagem (deformação), estilhaço (partículas), powerup (anúncio + ícone de estado ativo), febre (mudança perceptível do estado). O degrau de ritmo também se anuncia (`FASTER FALLS`), para a dificuldade não parecer bug. Consumíveis têm anúncio e efeito próprios (`SAVED!`, `CHUTÃO!`, chip de Magnet). Tempo de leitura em toda ativação.
 
 ### 3.10 Casos de borda
 - Whiff com Aimed Shot armado → powerup **permanece armado**.
@@ -103,6 +103,21 @@ Nenhuma interação silenciosa: chute (som + squash proporcionais à força — 
 - Bola paralela à parede → quique lateral simples; parede **não** quebra streak `[proposta — tuning]`.
 - Magnet não interage com argolas/pickups (só moedas) `[proposta — tuning]`.
 - Bola lenta no Breakable → desvia; `[velocidade mínima de rompimento: teste]`.
+- Safety Net só dispara depois de a run começar; se o jogador nunca tocou na bola, o consumível não é gasto.
+- Chutão com Aimed Shot armado → o Aimed tem prioridade; o Chutão espera o próximo chute normal.
+- Chutão não é gasto em whiff nem em toque antes do ápice; só um chute válido consome.
+- Magnet Start começa no primeiro toque (quando a run começa), não no spawn.
+
+### 3.11 Consumíveis da loja (0.3.0)
+Modelo: **3 slots, sem duplicatas, com devolução ao pool**. Comprar adiciona ao inventário; equipar não gasta; usar gasta uma unidade. Quando a última unidade sai, o item também sai do loadout. A loja é o sink das moedas e abre pelo título e pela tela de morte.
+
+| Consumível (EN/PT) | Efeito | Preço `[TESTE]` |
+|---|---|---:|
+| **Safety Net** / Rede de Proteção | Na morte, depois de a run ter começado, a bola reaparece 180 u acima da linha de morte com 1500 u/s para cima. Uma carga; a run continua e conta como normal. | 50 |
+| **Magnet Start** / Ímã Inicial | O primeiro toque da run ativa o Magnet por 15 s, com o mesmo raio/puxão do pickup. | 30 |
+| **Power Kick** / Chutão | O primeiro chute válido da run sai a **2750 u/s**, mantendo o ângulo do ponto de toque; o Perfect soma +60 (2810, abaixo da mola em 2850). Whiff não gasta. | 40 |
+
+`[CONFIRMAR]` preços, o gatilho do Chutão (primeiro chute) e a força da rede (1500 u/s / 180 u). A Safety Net foi decidida nos rounds 3–4; Magnet Start e Power Kick entraram como hipótese de loja v1. O detalhamento de design e as alternativas estão em `docs/proposta-conteudo-0.3.md`.
 
 ---
 
@@ -112,9 +127,9 @@ Nenhuma interação silenciosa: chute (som + squash proporcionais à força — 
 
 **Dentro da run:** altitude (placar), streak (multiplicador), moedas (coleta), rotas ousadas vs. seguras.
 
-**Economia MVP1:** moedas **sem sink** — coleta pura pra validar o loop de catação e o Magnet (round 6).
+**Economia (0.3.0):** a **loja de consumíveis** é o sink. Preços `[TESTE]` 50 (Safety Net), 30 (Magnet Start) e 40 (Power Kick). A moeda compra segurança, ritmo ou economia para uma run — nunca poder permanente. O MVP1 nasceu sem sink para validar a coleta e o Magnet; a 0.3.0 adicionou a saída.
 
-**Pós-MVP (já DECIDIDO em rounds 3–4, fora da build):** moeda-soft → loja de consumíveis; loadout pré-run de 3 slots sem duplicatas com devolução ao pool; consumível-salva (rede de proteção) auto-ativa na morte; save por AD 1x/run opt-in na tela de morte; runs salvas contam como normais; placar online só se o jogo merecer.
+**Pós-MVP (já decidido em rounds 3–4):** save por AD 1x/run opt-in na tela de morte; placar online só se o jogo merecer. A loja, o loadout de 3 slots e a rede de proteção saíram do pós-MVP e entraram na 0.3.0.
 
 **Progressão de skill:** perfect/streak/rotas — o jogador é o próprio placar.
 
@@ -124,19 +139,19 @@ Nenhuma interação silenciosa: chute (som + squash proporcionais à força — 
 
 **Tema/mundo:** `[A Definir — Próximos Passos]`. Direção não-comprometida registrada: biomas por altitude (rua → telhados → céu → estratosfera), mudando MISTURA de obstáculos, nunca regras. Pergunta-chave: **qual é o cenário emocional?** (rua urbana brasileira nostálgica? céu onírico/abstrato? sátira esportiva?)
 
-**MVP1 visual:** backdrop único, **minimalismo geométrico** — formas simples de leitura instantânea (círculo = bola, silhuetas planas = obstáculos). Justificativa: restrição de arte zero + pilar de legibilidade; cores/símbolos redundantes (daltonismo de graça).
+**MVP1 visual:** backdrop único, **minimalismo geométrico** — formas simples de leitura instantânea, com a bola como exceção deliberada: uma **bola de futebol estilizada** (textura gerada a partir de um icosaedro truncado, contorno escuro e sombreado) para dar identidade ao jogo. Os obstáculos continuam silhuetas planas. Justificativa: restrição de arte zero + pilar de legibilidade; cores/símbolos redundantes (daltonismo de graça).
 
 **Áudio:** `[A Definir — Próximos Passos]`. Pergunta-chave: primeiro o vocabulário de feedback (chute/quique/estilhaço/moeda) ou tudo de uma vez? Música dinâmica é pós-MVP.
 
-**Textos in-game:** **inglês** (diretriz de audiência internacional). Nomenclatura oficial: Keepie-Uppie (título de trabalho), Perfect Touch, Streak, Aimed Shot, Magnet, Power Kick (futuro).
+**Textos in-game:** **inglês** (diretriz de audiência internacional). Nomenclatura oficial: Keepie-Uppie (título de trabalho), Perfect Touch, Streak, Aimed Shot, Magnet, Power Kick (consumível, 0.3.0; PT: Chutão).
 
 ---
 
 ## 6. Escopo e Roadmap (MVP vs. Pós-MVP)
 
-**Ritmo de referência:** ~7h/semana em sessões curtas — o MVP1 é o foco único até o playtest; nada de pós-MVP antes de o core se provar gostoso.
+**Ritmo de referência:** ~7h/semana em sessões curtas. O MVP1 foi o foco único até o playtest; o **Ciclo 0.3** abriu identidade (bola/damping) e economia (loja), mas conteúdo novo de obstáculos/powerups continua atrás da aprovação do playtest e da proposta `docs/proposta-conteudo-0.3.md`.
 
-### MVP1 (ESTE build — validado em rounds 5–6)
+### MVP1 (base entregue na F7 — validado em rounds 5–6)
 | Bloco | Conteúdo |
 |---|---|
 | Core | controle A, força pela queda desde o ápice + piso curto, whiff neutro, início de run, câmera-catraca, paredes, morte por queda |
@@ -147,9 +162,18 @@ Nenhuma interação silenciosa: chute (som + squash proporcionais à força — 
 | Skill | Perfect Touch · Streak com rótulos + febre |
 
 ### FORA do MVP1 (explícito — não construir)
-Time-Warp · Power Kick/Chutão · multiball · zero-G · câmera-creep (vira knob de tuning só no playtest) · saves/AD · loja/loadout/pool · biomas/tema final · placar online · tutorial extenso (a run É o tutorial).
+Time-Warp · multiball · zero-G · câmera-creep (vira knob de tuning só no playtest) · saves/AD · biomas/tema final · placar online · tutorial extenso (a run É o tutorial). **Nota:** Power Kick/Chutão e loja/loadout/pool saíram desta lista e foram implementados no Ciclo 0.3.
+
+### Ciclo 0.3 — identidade e economia (implementado)
+| Bloco | Conteúdo |
+|---|---|
+| Identidade | bola de futebol gerada em runtime (icosaedro truncado), halo dourado, rastro escuro |
+| Feel | damping lateral: `wallRestitution` 0.8 (quiques encadeados perdem 20% por parede) |
+| Economia | loja de consumíveis, inventário e loadout de 3 slots no save; compra no título e na tela de morte |
+| Consumíveis | Safety Net (rede), Magnet Start (ímã no primeiro toque), Power Kick/Chutão (primeiro chute a 2750) |
+| Docs | `docs/release/fix11-bola-damping-e-loja.md` · `docs/proposta-conteudo-0.3.md` |
 
 ### Pós-MVP (decidido, aguardando o playtest)
-Loja + loadout + rede de proteção + save-AD (estrutura de rounds 3–4) · Time-Warp · Chutão (canal ainda aberto: powerup vs. consumível) · biomas · multiball (se provar valor) · online (se merecer).
+Save-AD · Time-Warp · biomas · multiball (se provar valor) · online (se merecer) · os itens de conteúdo da proposta 0.3 (Bumper, Ramp, Shield, Sweet Spot, Goal etc.), aprovados pelo usuário antes de entrar.
 
 **Gate de validação:** o playtest do MVP1 decide tudo que vem depois — diversão se valida no jogável, não no documento.
