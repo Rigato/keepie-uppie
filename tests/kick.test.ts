@@ -100,8 +100,8 @@ describe('computeKick', () => {
     expect(apex.arcTime).toBeGreaterThanOrEqual(0.75)
     expect(apex.arcTime).toBeLessThanOrEqual(0.95)
     expect(fullSpeed).toBeCloseTo(TUNING.kick.maxSpeed, 5)
-    expect(full.arcTime).toBeGreaterThanOrEqual(2.3)
-    expect(full.arcTime).toBeLessThanOrEqual(2.5)
+    expect(full.arcTime).toBeGreaterThanOrEqual(3.3)
+    expect(full.arcTime).toBeLessThanOrEqual(3.45)
   })
 
   it('a força cresce a cada trecho da queda', () => {
@@ -163,7 +163,31 @@ describe('computeKick', () => {
     const full = falling(TUNING.kick.fullPowerDrop, 24)
     expect(apex.arcTime).toBeGreaterThanOrEqual(0.75)
     expect(apex.arcTime).toBeLessThanOrEqual(0.95)
-    expect(full.arcTime).toBeGreaterThanOrEqual(2.3)
-    expect(full.arcTime).toBeLessThanOrEqual(2.5)
+    expect(full.arcTime).toBeGreaterThanOrEqual(3.3)
+    expect(full.arcTime).toBeLessThanOrEqual(3.45)
+  })
+
+  it('a metade de baixo da tela é ao menos 30% mais forte que a 0.1.7', () => {
+    // Referência da build anterior: catraca em 34% e curva 500–1550.
+    const oldApex = TUNING.world.height * 0.34
+    const oldSpeed = (drop: number): number =>
+      500 + 1050 * Math.pow(Math.min(drop / 640, 1), 0.85)
+
+    // Toca em várias alturas da metade de baixo. A nova catraca fica mais
+    // alta, então a mesma tela exige uma queda maior — e mais força.
+    for (const screenY of [540, 600, 700, 800, 900, 1000]) {
+      const oldDrop = Math.max(0, screenY - oldApex)
+      const newDrop = Math.max(0, screenY - TUNING.world.height * TUNING.camera.ratchetAt)
+      const before = oldSpeed(oldDrop)
+      const kick = falling(newDrop, 24)
+      const speed = Math.hypot(kick.vx, kick.vy)
+      expect(speed).toBeGreaterThanOrEqual(before * 1.3)
+    }
+  })
+
+  it('a força máxima é alcançável antes da linha de morte', () => {
+    const fallRoom =
+      TUNING.world.height * (1 - TUNING.camera.ratchetAt) + TUNING.ball.radius
+    expect(TUNING.kick.fullPowerDrop).toBeLessThanOrEqual(fallRoom)
   })
 })

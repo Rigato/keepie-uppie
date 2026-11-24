@@ -23,7 +23,7 @@
 
 **Pilares de design** (testáveis contra qualquer decisão futura):
 1. **O dedo é o pé.** Todo chute nasce do toque direto na bola; a posição do toque no corpo da bola define o ângulo (oposto, como chutar uma bola de verdade). *Teste:* qualquer mecânica que peça mira/aim-UI no jogo base é rejeitada — mira existe só como powerup raro.
-2. **Ritmo de embaixadinha.** Só se chuta bola em queda; o toque no ápice rende uma embaixadinha curta (~0.8s de arco) e a queda cheia chega a ~2.5s — a altura é a recompensa por esperar a bola descer. *Teste:* qualquer pausa no tempo real precisa ser item-powerup consciente e raro (Aimed Shot é a única).
+2. **Ritmo de embaixadinha.** Só se chuta bola em queda; o toque no ápice rende uma embaixadinha curta (~0.8s de arco) e a queda cheia chega a ~3.5s — a altura é a recompensa por esperar a bola descer, e o fundo da tela é o grande golpe da run. *Teste:* qualquer pausa no tempo real precisa ser item-powerup consciente e raro (Aimed Shot é a única).
 3. **Perturbar, nunca matar.** Obstáculos desviam, drenam ou estilhaçam — nenhum mata no contato. A única morte é a queda. *Teste:* cada obstáculo novo responde "isso cria recuperação ou encerra o show?". Encerrar = rejeitado.
 4. **Legibilidade radical.** Todo evento tem tempo de leitura — animação/feedback antes de o jogo exigir ação de volta (round 4, do usuário). *Teste:* o jogador nunca pergunta "o que acabou de acontecer?".
 
@@ -45,15 +45,15 @@
 - Toque/click **na bola em queda** = chute (rounds 2 e 5).
 - **Ângulo:** distância do ponto de toque ao centro da bola define o ângulo lateral, sempre **oposto** (toca na esquerda → sobe pra direita), como uma bola de verdade. Centro = chute reto.
 - Sem avatar; sem UI de mira; sem preview (PC incluído).
-- **Força:** a bola acelera ao cair e o chute devolve essa queda em altura. Quanto mais a bola desce desde o ápice, mais forte o chute; tocar no ápice é uma embaixadinha curta. A distância caída continua contando mesmo depois do teto de velocidade de queda (`maxFallSpeed`), então esperar mais baixo continua pagando. `[curva: teste]`
-- **Faixa (banda):** arcos de ~0.8s no toque de ápice a ~2.5s na queda cheia (round 4; número = teste). O piso curto é intencional: é o custo de tocar cedo, não uma espiral de morte — o jogador recebe outro toque durante a queda.
+- **Força:** a bola acelera ao cair e o chute devolve essa queda em altura. Quanto mais a bola desce desde o ápice, mais forte o chute; tocar no ápice é uma embaixadinha curta. A distância caída continua contando mesmo depois do teto de velocidade de queda (`maxFallSpeed`), então esperar mais baixo continua pagando. Da metade da tela para baixo o chute entra na faixa forte; no fundo, é o grande golpe da run. `[curva: teste]`
+- **Faixa (banda):** arcos de ~0.8s no toque de ápice a ~3.5s na queda cheia (round 4; número = teste). O piso curto é intencional: é o custo de tocar cedo, não uma espiral de morte — o jogador recebe outro toque durante a queda.
 
 ### 3.2 Whiff
 Toque que erra a bola **não faz nada**: sem chute, sem penalidade, a bola segue caindo. Custo = tempo perdido + pânico (round 3).
 
 ### 3.3 Run, câmera, espaço (round 6)
 - **Início:** a bola cai do topo-centro; o primeiro toque inicia o placar.
-- **Câmera:** catraca — sobe com a bola, **nunca desce**.
+- **Câmera:** catraca — sobe com a bola, **nunca desce**. O pico do chute chega perto do topo da tela (a câmera acompanha a subida); a altura visível é parte da recompensa da queda, não só o contador. `[posição do ápice: teste]`
 - **Linha de morte:** o fundo da tela; sobe com o progresso. Bola cruza o fundo = fim da run (rounds 1–2).
 - **Paredes laterais:** a bola **quica** nas bordas da tela; sem wrap-around.
 - **Perfect Touch (C1):** janela central da bola — acertar = "PERFECT", **bônus pequeno de velocidade somado ao chute** + celebração curta. O perfect não substitui o timing: no ápice, o chute continua curto. `[janela e bônus: teste]`

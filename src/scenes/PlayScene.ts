@@ -127,7 +127,9 @@ export class PlayScene extends Phaser.Scene {
     this.parallax = new Parallax(this)
 
     // Scrim do topo: obstáculos somem atrás do HUD em vez de competir com ele.
-    const scrim = this.add.graphics().setScrollFactor(0).setDepth(90)
+    // Fica abaixo da bola e do rastro para o ápice em `camera.maxTop` não
+    // escurecer o que o jogador precisa ver (o HUD continua acima, no depth 100).
+    const scrim = this.add.graphics().setScrollFactor(0).setDepth(8)
     scrim.fillGradientStyle(
       PALETTE.bgSoft,
       PALETTE.bgSoft,

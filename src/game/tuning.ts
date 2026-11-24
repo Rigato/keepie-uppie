@@ -33,20 +33,24 @@ export const TUNING = {
      * não pode render o mesmo que tocar no fundo. [TESTE]
      */
     minSpeed: 500,
-    /** Teto da faixa normal: queda cheia, arco de ~2.4 s. [TESTE] */
-    maxSpeed: 1550,
+    /**
+     * Teto da faixa normal: queda cheia, arco de ~3.4 s. O chute fundo precisa
+     * ser o "grande golpe" da run; o preço é o tempo de voo. [TESTE]
+     */
+    maxSpeed: 2200,
     /**
      * Queda (u) desde o ápice que satura a força. A velocidade de queda tem
      * teto em `physics.maxFallSpeed`, então é a distância caída que continua
-     * recompensando o jogador que espera a bola descer mais. [TESTE]
+     * recompensando o jogador que espera a bola descer mais. Com a catraca em
+     * 22%, a queda útil até a linha de morte é ~870 u: 850 é quase o fundo. [TESTE]
      */
-    fullPowerDrop: 640,
+    fullPowerDrop: 850,
     /**
-     * Expoente da curva de queda (<1). Dá força já nos primeiros trechos e
-     * evita um "vale" em que esperar um pouco renderia menos ganho líquido
-     * do que tocar no ápice. [TESTE]
+     * Expoente da curva de queda (<1). A metade de baixo da tela precisa ser
+     * bem mais forte que a de cima (+30% ou mais em relação à 0.1.7), então a
+     * curva entrega boa parte da força cedo e ainda cresce até o fundo. [TESTE]
      */
-    powerCurve: 0.85,
+    powerCurve: 0.7,
     /** Componente lateral máxima no toque na borda. */
     maxLateral: 0.75,
     /** Janela central para o Perfect Touch, em fração do raio de ângulo. [TESTE] */
@@ -69,16 +73,18 @@ export const TUNING = {
   camera: {
     /**
      * Linha de espera da catraca: a bola pode subir visivelmente até esta
-     * fração da tela antes de a câmera começar a segui-la.
+     * fração da tela antes de a câmera começar a segui-la. Subiu de 34% para
+     * 22% junto com `maxTop`: o ápice inteiro fica ~130 u mais alto na tela.
      */
-    ratchetAt: 0.34,
+    ratchetAt: 0.22,
     /** Velocidade de acompanhamento (lerp por segundo); menor = mais atraso. */
     followSpeed: 6,
     /**
-     * A bola nunca sai acima desta fração do topo. 26% deixa o ápice abaixo
-     * do scrim do HUD e devolve espaço de leitura acima da bola.
+     * A bola nunca sai acima desta fração do topo. 14% deixa o ápice logo
+     * abaixo do HUD (a bola ainda cabe inteira) e é bem mais alto que os 26%
+     * da 0.1.7 — é o teto visual da recompensa da queda.
      */
-    maxTop: 0.26,
+    maxTop: 0.14,
   },
 
   run: {
@@ -108,7 +114,7 @@ export const TUNING = {
     breakableWidth: 106,
     breakableHeight: 21,
     /** Velocidade mínima para romper o breakable (recalibrada com a nova faixa de chute). [TESTE] */
-    breakSpeed: 1350,
+    breakSpeed: 1800,
     /** Fração de velocidade perdida no soft. */
     softDamp: 0.45,
     birdWidth: 37,
@@ -159,8 +165,8 @@ export const TUNING = {
     ringCoinBurst: 8,
     springWidth: 70,
     springHeight: 18,
-    /** Recalibrada para manter o mesmo ápice com a gravidade nova (era 2650 com g=1700). */
-    springLaunchSpeed: 2320,
+    /** Recalibrada para manter o boost acima do chute máximo na câmera nova. */
+    springLaunchSpeed: 2450,
     springCooldownMs: 350,
     pickupRadius: 21,
   },
@@ -195,7 +201,7 @@ export const TUNING = {
     aimDeadZone: 24,
     /** Faixa de velocidade do tiro mirado, fora da faixa normal (recalibrada com g=1300). */
     aimMinSpeed: 1200,
-    aimMaxSpeed: 2200,
+    aimMaxSpeed: 2500,
     /** Duração do Magnet. [TESTE] */
     magnetDurationMs: 15000,
     /** Raio de puxão (−20% da calibração anterior); a aura acompanha. [TESTE] */
