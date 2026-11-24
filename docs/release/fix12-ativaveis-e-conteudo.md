@@ -4,7 +4,7 @@
 |---|---|
 | **Data** | 24/11/2026 |
 | **Build** | `0.4.0-mvp1` · F7 |
-| **Pacote** | `release/keepie-uppie-v0.4.0-mvp1.zip` · SHA-256 a preencher |
+| **Pacote** | `release/keepie-uppie-v0.4.0-mvp1.zip` · 357,9 KiB · SHA-256 `dbc1ca4e0512b1301e1ddea4ffee709f36d9894b260aaf3809c734280784355e` |
 | **URL** | https://rigato.github.io/keepie-uppie/ |
 
 ## O pedido
@@ -70,6 +70,7 @@ Set piece a cada 400–600 m, primeiro em 200 m: moldura de 208×134 com vão 18
 
 - **121 testes** (11 arquivos) verdes; typecheck limpo.
 - **Smoke E2E 8/8** (390×844), incluindo o BACK da loja, sem erro de console.
+- **Pacote validado**: 3 arquivos, 1.297,1 KiB descompactado, **357,9 KiB** zipado, maior path 25. Gerado com `GITHUB_SHA` do commit de código (`a362935`); commits seguintes só de docs podem rebuildar o Pages com outro SHA, mas o código é o mesmo.
 - **Loja 4 cards** a 390×844: compra no release, equipar/desequipar, botões desabilitados, loadout 3/3, sem corte.
 - **Barra**: clique real nos três slots; refresh/armed/contains; `camera.scrollY` não desloca.
 - **Live determinístico** (script de browser):
