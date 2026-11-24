@@ -32,6 +32,7 @@ export class DebugOverlay extends Phaser.Scene {
   private ballRow!: DebugRow
   private runRow!: DebugRow
   private kickRow!: DebugRow
+  private paceRow!: DebugRow
   private saveRow!: DebugRow
   private extraRow!: DebugRow
 
@@ -58,6 +59,7 @@ export class DebugOverlay extends Phaser.Scene {
     this.ballRow = this.addRow('BALL', '—', CSS_PALETTE.ink)
     this.runRow = this.addRow('RUN', '—', CSS_PALETTE.ink)
     this.kickRow = this.addRow('KICK', '—', CSS_PALETTE.ink)
+    this.paceRow = this.addRow('PACE', '—', CSS_PALETTE.ink)
     this.saveRow = this.addRow('SAVE', '—', CSS_PALETTE.ink)
     this.extraRow = this.addRow('EXTRA', '', CSS_PALETTE.ink)
     this.extraRow.label.setVisible(false)
@@ -130,6 +132,9 @@ export class DebugOverlay extends Phaser.Scene {
     )
     this.kickRow.value.setText(
       `arc ${DEBUG_STATE.lastKickArc.toFixed(2)} s · power ${Math.round(DEBUG_STATE.lastKickPower)}`,
+    )
+    this.paceRow.value.setText(
+      `stage ${DEBUG_STATE.difficultyStage} · limite ${Math.round(DEBUG_STATE.fallSpeedLimit)} u/s`,
     )
     this.saveRow.value.setText(`best ${best} · coins ${total} · ${mute}`)
 

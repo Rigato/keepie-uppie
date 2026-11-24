@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { metersFromTop, ratchetCameraY, smoothCameraY } from '../core/camera'
 import { reflectVelocity } from '../core/collision'
 import { resolveAim } from '../core/aim'
+import { difficultyStageAt, fallSpeedLimitAt } from '../core/difficulty'
 import { InteractiveSpawner } from '../core/interactive-spawner'
 import { computeKick, isInsideBall, type KickResult } from '../core/kick'
 import { ObstacleSpawner } from '../core/spawner'
@@ -50,6 +51,10 @@ export class PlayScene extends Phaser.Scene {
   private meters = 0
   private coins = 0
   private cameraY = 0
+  /** Teto de queda do estágio atual; sobe a cada `difficulty.stageMeters` de pico. */
+  private fallSpeedLimit: number = TUNING.physics.maxFallSpeed
+  /** Último estágio aplicado, para o aviso de ritmo disparar uma vez por degrau. */
+  private difficultyStage = 0
   /** Ponto mais alto da trajetória desde o último chute: base da força do toque. */
   private arcApexY = 0
   private lastWholeMeters = -1
@@ -72,6 +77,8 @@ export class PlayScene extends Phaser.Scene {
   private feverAura!: Phaser.GameObjects.Arc
   private streakText!: Phaser.GameObjects.Text
   private feverText!: Phaser.GameObjects.Text
+  /** Aviso curto quando o ritmo da queda sobe um degrau. */
+  private paceText!: Phaser.GameObjects.Text
   private feverHudAt = 0
   private hitStopUntil = 0
   private trail: Phaser.GameObjects.Arc[] = []
@@ -100,6 +107,8 @@ export class PlayScene extends Phaser.Scene {
     this.meters = 0
     this.coins = 0
     this.cameraY = 0
+    this.fallSpeedLimit = TUNING.physics.maxFallSpeed
+    this.difficultyStage = 0
     this.lastWholeMeters = -1
     this.spawner.reset((Math.random() * 0xffffffff) >>> 0)
     this.obstacles = []
@@ -207,6 +216,20 @@ export class PlayScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(100)
       .setVisible(false)
+
+    // Aviso de ritmo: fica abaixo do streak/febre, longe da bola.
+    this.paceText = this.add
+      .text(width / 2, 104, '', {
+        fontFamily: FONT_SANS,
+        fontSize: '12px',
+        color: CSS_PALETTE.accent,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setLetterSpacing(3)
+      .setScrollFactor(0)
+      .setDepth(100)
+      .setAlpha(0)
 
     // Rastro curto: leitura de velocidade sem custo por frame.
     for (let i = 0; i < 6; i += 1) {
@@ -322,7 +345,7 @@ export class PlayScene extends Phaser.Scene {
     b.vy = Math.min(
       b.vy +
         TUNING.physics.gravity * (this.started ? 1 : TUNING.run.serveGravityScale) * dt,
-      TUNING.physics.maxFallSpeed,
+      this.fallSpeedLimit,
     )
     b.x += b.vx * dt
     b.y += b.vy * dt
@@ -363,6 +386,32 @@ export class PlayScene extends Phaser.Scene {
       this.lastWholeMeters = whole
       this.hud.setMeters(whole)
     }
+    this.updateDifficulty()
+  }
+
+  /** Aplica o degrau de ritmo quando o pico da run cruza um múltiplo de 500 m. */
+  private updateDifficulty(): void {
+    const stage = difficultyStageAt(this.meters)
+    if (stage === this.difficultyStage) return
+
+    const limit = fallSpeedLimitAt(this.meters)
+    const increased = limit > this.fallSpeedLimit
+    this.difficultyStage = stage
+    this.fallSpeedLimit = limit
+    if (increased) this.showPaceStep()
+  }
+
+  private showPaceStep(): void {
+    this.paceText.setText('FASTER FALLS').setAlpha(0)
+    this.tweens.killTweensOf(this.paceText)
+    this.tweens.add({
+      targets: this.paceText,
+      alpha: { from: 0, to: 1 },
+      duration: 160,
+      hold: 900,
+      yoyo: true,
+      ease: 'Quad.out',
+    })
   }
 
   private updateObstacles(dt: number): void {
@@ -696,6 +745,8 @@ export class PlayScene extends Phaser.Scene {
     DEBUG_STATE.meters = this.meters
     DEBUG_STATE.coins = this.coins
     DEBUG_STATE.streak = this.streak.count
+    DEBUG_STATE.fallSpeedLimit = this.fallSpeedLimit
+    DEBUG_STATE.difficultyStage = this.difficultyStage
     DEBUG_STATE.powerup = this.aiming
       ? 'aiming'
       : this.magnetEndsAt > this.time.now

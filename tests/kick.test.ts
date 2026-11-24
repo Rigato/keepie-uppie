@@ -166,7 +166,7 @@ describe('computeKick', () => {
     expect(apexPerfect.arcTime).toBeLessThan(1.0)
   })
 
-  it('a queda máxima passa tempo suficiente dentro do alvo de toque', () => {
+  it('a queda máxima base passa tempo suficiente dentro do alvo de toque', () => {
     const windowSeconds = (2 * TUNING.kick.touchRadius) / TUNING.physics.maxFallSpeed
     expect(windowSeconds).toBeGreaterThanOrEqual(0.15)
   })

@@ -45,7 +45,7 @@
 - Toque/click **na bola em queda** = chute (rounds 2 e 5).
 - **Ângulo:** distância do ponto de toque ao centro da bola define o ângulo lateral, sempre **oposto** (toca na esquerda → sobe pra direita), como uma bola de verdade. Centro = chute reto.
 - Sem avatar; sem UI de mira; sem preview (PC incluído).
-- **Força:** a bola acelera ao cair e o chute devolve essa queda em altura. Quanto mais a bola desce desde o ápice, mais forte o chute; tocar no ápice é uma embaixadinha curta. A distância caída continua contando mesmo depois do teto de velocidade de queda (`maxFallSpeed`), então esperar mais baixo continua pagando. Da metade da tela para baixo o chute entra na faixa forte; de 80% da tela para baixo há um segundo estágio em que o ganho por trecho **cresce** (o fundo não "normaliza"), e o fundo útil vira o grande golpe da run. `[curva: teste]`
+- **Força:** a bola acelera ao cair e o chute devolve essa queda em altura. Quanto mais a bola desce desde o ápice, mais forte o chute; tocar no ápice é uma embaixadinha curta. A distância caída continua contando mesmo depois do teto de velocidade de queda do estágio (`maxFallSpeed`, que sobe com a altitude — ver 3.3), então esperar mais baixo continua pagando. Da metade da tela para baixo o chute entra na faixa forte; de 80% da tela para baixo há um segundo estágio em que o ganho por trecho **cresce** (o fundo não "normaliza"), e o fundo útil vira o grande golpe da run. `[curva: teste]`
 - **Faixa (banda):** arcos de ~0.8s no toque de ápice a ~4.0s na queda cheia (round 4; número = teste). O piso curto é intencional: é o custo de tocar cedo, não uma espiral de morte — o jogador recebe outro toque durante a queda.
 
 ### 3.2 Whiff
@@ -55,6 +55,7 @@ Toque que erra a bola **não faz nada**: sem chute, sem penalidade, a bola segue
 - **Início:** a bola cai do topo-centro; o primeiro toque inicia o placar.
 - **Câmera:** catraca — sobe com a bola, **nunca desce**. O pico do chute chega perto do topo da tela (a câmera acompanha a subida); a altura visível é parte da recompensa da queda, não só o contador. `[posição do ápice: teste]`
 - **Linha de morte:** o fundo da tela; sobe com o progresso. Bola cruza o fundo = fim da run (rounds 1–2).
+- **Ritmo progressivo:** a cada 500 m de altitude de pico, o teto de queda sobe 75 u/s, de 900 até 1200 u/s; no limite a janela de toque fica em ~0,125 s. O aviso `FASTER FALLS` marca cada degrau e o ritmo reseta a cada run. A regra de chute não muda — o mesmo toque rende a mesma força; o que encolhe é o tempo de decisão. `[degraus: teste]`
 - **Paredes laterais:** a bola **quica** nas bordas da tela; sem wrap-around.
 - **Perfect Touch (C1):** janela central da bola — acertar = "PERFECT", **bônus pequeno de velocidade somado ao chute** + celebração curta. O perfect não substitui o timing: no ápice, o chute continua curto. `[janela e bônus: teste]`
 
@@ -93,7 +94,7 @@ Altitude em **metros** (contador de altura) + moedas coletadas. Best pessoal **l
 - **Streak (combo de toques limpos):** chutes limpos consecutivos sobem multiplicador com **rótulos escalonados em EN** (padrão GOOD → SWEET → EXTREME do Icy Tower, nomes finais `[A Definir — tuning]`). No topo: **febre** — moedas valem dobrado por um tempo (padrão fever do Tiny Wings). Quebra em **whiff** (proposta base); se colisão com obstáculo também quebra = `[variante de tuning a testar]`.
 
 ### 3.9 Feedback e legibilidade (pilar 4)
-Nenhuma interação silenciosa: chute (som + squash proporcionais à força — fraco é leve, forte é pesado), desvio (traço + som), drenagem (deformação), estilhaço (partículas), powerup (anúncio + ícone de estado ativo), febre (mudança perceptível do estado). Tempo de leitura em toda ativação.
+Nenhuma interação silenciosa: chute (som + squash proporcionais à força — fraco é leve, forte é pesado), desvio (traço + som), drenagem (deformação), estilhaço (partículas), powerup (anúncio + ícone de estado ativo), febre (mudança perceptível do estado). O degrau de ritmo também se anuncia (`FASTER FALLS`), para a dificuldade não parecer bug. Tempo de leitura em toda ativação.
 
 ### 3.10 Casos de borda
 - Whiff com Aimed Shot armado → powerup **permanece armado**.
@@ -107,7 +108,7 @@ Nenhuma interação silenciosa: chute (som + squash proporcionais à força — 
 
 ## 4. Progressão e Economia
 
-**Dificuldade:** cresce com altitude por MISTURA (proporção de obstáculos/riscos muda; regras nunca mudam). Curva com vales — respira entre picos. `[números: A Definir — tuning]`
+**Dificuldade:** cresce com altitude por MISTURA (proporção de obstáculos/riscos muda) e, desde a 0.2.0, também por RITMO (o teto de queda sobe 75 u/s a cada 500 m, de 900 até 1200). As regras de input e chute são as mesmas do primeiro ao último metro; mudam a densidade e o tempo de decisão. Curva com vales — respira entre picos. `[números: A Definir — tuning]`
 
 **Dentro da run:** altitude (placar), streak (multiplicador), moedas (coleta), rotas ousadas vs. seguras.
 

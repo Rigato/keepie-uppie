@@ -14,6 +14,9 @@ export interface DebugState {
   powerup: string
   lastKickArc: number
   lastKickPower: number
+  /** Teto de queda do estágio atual (u/s) e estágio de ritmo da run. */
+  fallSpeedLimit: number
+  difficultyStage: number
   extra: string
 }
 
@@ -29,5 +32,7 @@ export const DEBUG_STATE: DebugState = {
   powerup: '—',
   lastKickArc: 0,
   lastKickPower: 0,
+  fallSpeedLimit: 0,
+  difficultyStage: 0,
   extra: '',
 }

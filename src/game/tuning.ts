@@ -20,10 +20,27 @@ export const TUNING = {
     /** Quantos unidades de mundo equivalem a 1 metro de altitude. */
     pxPerMeter: 20,
     /**
-     * Teto de queda: a bola acelera só até aqui e depois cai em velocidade
-     * constante. É o que mantém a janela de toque humana mesmo sem mirar.
+     * Teto inicial de queda: a bola acelera só até aqui e depois cai em
+     * velocidade constante. É o que mantém a janela de toque humana mesmo sem
+     * mirar. A partir de `difficulty.stageMeters` este teto sobe em degraus.
      */
     maxFallSpeed: 900,
+  },
+
+  difficulty: {
+    /**
+     * Dificuldade por ritmo: a cada 500 m de altitude de pico, o teto de queda
+     * sobe um degrau de 75 u/s. A 0.2.0 começa nos 900 aprovados e chega a
+     * 1200 no topo da curva. [TESTE]
+     */
+    stageMeters: 500,
+    fallSpeedStep: 75,
+    /**
+     * Limite do teto de queda. Com 1200 u/s a janela de toque ainda fica em
+     * ~0,125 s (7 frames a 60 fps), contra 0,167 s na base — o mínimo que
+     * mantém o chute de reflexo jogável no celular. [TESTE]
+     */
+    fallSpeedLimit: 1200,
   },
 
   kick: {
