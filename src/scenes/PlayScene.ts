@@ -8,7 +8,12 @@ import { computeKick, isInsideBall, type KickResult } from '../core/kick'
 import { ObstacleSpawner } from '../core/spawner'
 import { StreakTracker, labelForCount, type StreakLabel } from '../core/streak'
 import { consume, equippedIds } from '../core/shop'
-import type { ConsumableId } from '../core/consumables'
+import {
+  ACTIVATABLE_IDS,
+  type ActivatableId,
+  type ConsumableId,
+} from '../core/consumables'
+import { GoalSpawner } from '../core/goal'
 import { audio } from '../fx/audio'
 import { BUILD_LABEL } from '../game/build-info'
 import { FONT_MONO, FONT_SANS } from '../game/config'
@@ -19,6 +24,8 @@ import type { BallLike } from '../game/contracts'
 import { CSS_PALETTE, PALETTE } from '../game/palette'
 import { TUNING } from '../game/tuning'
 import { createBallView } from '../ui/ball'
+import { ConsumableBar } from '../ui/consumable-bar'
+import { createGoal, type GoalInstance } from '../objects/goal'
 import { createObstacle, type ObstacleContact, type ObstacleInstance } from '../objects/obstacles'
 import {
   createInteractive,
@@ -91,14 +98,26 @@ export class PlayScene extends Phaser.Scene {
   private kickRing!: Phaser.GameObjects.Container
   /** Toque que chegou um pouco antes do ápice; dispara quando a bola fica chutável. */
   private bufferedTap: { x: number; y: number; until: number; aimed: boolean } | null = null
-  /** Consumíveis equipados e ainda disponíveis nesta run. */
+  /** Consumíveis equipados e ainda com carga nesta run. */
   private runItems = new Set<ConsumableId>()
-  /** Chutão: o primeiro chute válido da run vira um chute de 2750 u/s. */
-  private chutaoReady = false
+  /** Barra de ativáveis na tela; só os que o jogador trouxe. */
+  private consumableBar!: ConsumableBar
+  /** Chutão: ativado, o próximo chute válido vira um chute de 2750 u/s. */
+  private chutaoArmed = false
+  /** Streak Saver: ativado, o próximo whiff não zera o streak. */
+  private streakSaverArmed = false
   /** Rede de proteção: salva a bola uma vez ao cruzar a linha de morte. */
   private netReady = false
-  /** Ímã inicial: começa no primeiro toque, quando a run de fato começa. */
-  private magnetStartReady = false
+  /** Escudo: janela com uma carga; o próximo contato com obstáculo vira quique para cima. */
+  private shieldUntil = 0
+  /** Ponto Doce: janela com Perfect ampliado e bônus maior. */
+  private sweetUntil = 0
+  private shieldAura!: Phaser.GameObjects.Arc
+  private sweetMarker!: Phaser.GameObjects.Container
+  private shieldHudAt = 0
+  private sweetHudAt = 0
+  private goalSpawner = new GoalSpawner()
+  private goals: GoalInstance[] = []
   /** Área do botão SHOP na tela de morte, em coordenadas de tela. */
   private deathShopRect = new Phaser.Geom.Rectangle(0, 0, 0, 0)
 
@@ -123,10 +142,13 @@ export class PlayScene extends Phaser.Scene {
     this.fallSpeedLimit = TUNING.physics.maxFallSpeed
     this.difficultyStage = 0
     this.lastWholeMeters = -1
-    this.spawner.reset((Math.random() * 0xffffffff) >>> 0)
+    const seed = (Math.random() * 0xffffffff) >>> 0
+    this.spawner.reset(seed)
     this.obstacles = []
-    this.interactiveSpawner.reset((Math.random() * 0xffffffff) >>> 0)
+    this.interactiveSpawner.reset(seed ^ 0x9e3779b9)
     this.interactives = []
+    this.goalSpawner.reset(seed ^ 0x85ebca6b)
+    this.goals = []
     this.aimedArmed = false
     this.magnetEndsAt = 0
     this.magnetHudAt = 0
@@ -142,9 +164,13 @@ export class PlayScene extends Phaser.Scene {
     this.bufferedTap = null
     const equipped = equippedIds(save)
     this.runItems = new Set(equipped)
-    this.chutaoReady = this.runItems.has('chutao')
+    this.chutaoArmed = false
+    this.streakSaverArmed = false
     this.netReady = this.runItems.has('net')
-    this.magnetStartReady = this.runItems.has('magnet')
+    this.shieldUntil = 0
+    this.sweetUntil = 0
+    this.shieldHudAt = 0
+    this.sweetHudAt = 0
     this.deathShopRect.setTo(0, 0, 0, 0)
     DEBUG_STATE.powerup = '—'
 
@@ -174,7 +200,13 @@ export class PlayScene extends Phaser.Scene {
     // mantém a leitura da bola contra o céu claro.
     this.ballView = this.add.container(this.ball.x, this.ball.y).setDepth(10)
     const glow = this.add.circle(0, 0, TUNING.ball.radius + 18, PALETTE.ball, 0.09)
-    this.ballView.add([glow, createBallView(this, TUNING.ball.radius)])
+    this.sweetMarker = this.add
+      .container(0, 0, [
+        this.add.circle(0, 0, 12).setStrokeStyle(2, PALETTE.sweet, 0.9),
+        this.add.circle(0, 0, 5, PALETTE.sweet, 1),
+      ])
+      .setVisible(false)
+    this.ballView.add([glow, createBallView(this, TUNING.ball.radius), this.sweetMarker])
 
     // Área de chute: anel de pontos opcional (tuning com `?ring=1`).
     const kickDots: Phaser.GameObjects.Arc[] = []
@@ -200,11 +232,22 @@ export class PlayScene extends Phaser.Scene {
 
     this.powerupHud = new PowerupHud(this)
     this.aimUi = new AimUi(this)
+    this.consumableBar = new ConsumableBar(
+      this,
+      ACTIVATABLE_IDS.filter((id) => this.runItems.has(id)),
+      (id) => this.activateConsumable(id),
+    )
 
     this.magnetAura = this.add
       .circle(0, 0, TUNING.powerup.magnetRadius, PALETTE.magnet, 0.1)
       .setStrokeStyle(2, PALETTE.magnet, 0.32)
       .setDepth(9)
+      .setVisible(false)
+
+    this.shieldAura = this.add
+      .circle(0, 0, TUNING.ball.radius + 10, PALETTE.shield, 0.08)
+      .setStrokeStyle(2, PALETTE.shield, 0.55)
+      .setDepth(11)
       .setVisible(false)
 
     this.feverAura = this.add
@@ -349,7 +392,9 @@ export class PlayScene extends Phaser.Scene {
     this.updateAltitude()
     this.updateObstacles(dt)
     this.updateInteractives(dt)
+    this.updateGoals(dt)
     this.updateMagnet(dt)
+    this.updateTimedPowerups()
     this.updateFever()
     this.updateKickRing()
     this.updateTrail()
@@ -470,6 +515,10 @@ export class PlayScene extends Phaser.Scene {
   }
 
   private applyObstacleContact(obstacle: ObstacleInstance, contact: ObstacleContact): void {
+    // Escudo: o próximo contato vira um quique amigável para cima e ignora
+    // dreno/estilhaço/desvio. A carga é gasta aqui.
+    if (this.tryShieldSave(obstacle, contact)) return
+
     switch (contact.result) {
       case 'reflect': {
         if (contact.normal) {
@@ -477,7 +526,7 @@ export class PlayScene extends Phaser.Scene {
             this.ball.vx,
             this.ball.vy,
             contact.normal,
-            TUNING.physics.wallRestitution,
+            contact.restitution ?? TUNING.physics.wallRestitution,
           )
           this.ball.vx = reflected.vx
           this.ball.vy = reflected.vy
@@ -557,6 +606,68 @@ export class PlayScene extends Phaser.Scene {
     }
   }
 
+  private updateGoals(dt: number): void {
+    const spec = this.goalSpawner.update({
+      cameraTop: this.cameraY,
+      meters: this.meters,
+      ballX: this.ball.x,
+    })
+    if (spec) this.goals.push(createGoal(this, spec))
+
+    for (let i = this.goals.length - 1; i >= 0; i -= 1) {
+      const goal = this.goals[i]
+      if (!goal) continue
+      goal.update(dt, this.time.now)
+
+      if (goal.tryScore(this.ball)) this.scoreGoal(goal)
+
+      const contact = goal.contact(this.ball)
+      if (contact) {
+        if (contact.normal) {
+          const reflected = reflectVelocity(
+            this.ball.vx,
+            this.ball.vy,
+            contact.normal,
+            contact.restitution ?? TUNING.physics.wallRestitution,
+          )
+          this.ball.vx = reflected.vx
+          this.ball.vy = reflected.vy
+          const push = (contact.penetration ?? 0) + 1
+          this.ball.x += contact.normal.x * push
+          this.ball.y += contact.normal.y * push
+        }
+        goal.react(contact)
+        audio.play('wall', { pitch: 0.72, volume: 0.85 })
+        this.cameras.main.shake(60, TUNING.fx.shakeHard * contact.strength)
+        gameEvents.emit('obstacleContact', {
+          x: contact.point.x,
+          y: contact.point.y,
+          kind: 'goal',
+          result: 'reflect',
+          strength: contact.strength,
+        })
+      }
+
+      const belowScreen =
+        goal.bounds.y - this.cameraY >
+        TUNING.world.height + TUNING.obstacle.despawnMargin
+      if (belowScreen) {
+        goal.destroy()
+        this.goals.splice(i, 1)
+      }
+    }
+  }
+
+  private scoreGoal(goal: GoalInstance): void {
+    const value = this.addCoins(TUNING.goal.coinBonus)
+    this.popLabel('GOAL!', CSS_PALETTE.accent, true, 120)
+    audio.play('fever', { pitch: 1.25, volume: 0.8 })
+    this.cameras.main.flash(120, 255, 245, 210)
+    this.burst(goal.root.x, goal.root.y, PALETTE.goal, 12)
+    this.burst(goal.root.x, goal.root.y, PALETTE.accent, 6)
+    gameEvents.emit('goal', { x: goal.root.x, y: goal.root.y, coins: value })
+  }
+
   private applyInteractiveContact(item: InteractiveInstance, contact: InteractiveContact): void {
     switch (contact.result) {
       case 'collect': {
@@ -594,6 +705,10 @@ export class PlayScene extends Phaser.Scene {
         } else if (contact.pickup === 'aimed') {
           this.aimedArmed = true
           this.powerupHud.setAimed(true)
+        } else if (contact.pickup === 'shield') {
+          this.activateShield()
+        } else if (contact.pickup === 'sweet') {
+          this.activateSweet()
         }
         if (contact.pickup) {
           gameEvents.emit('pickup', {
@@ -666,7 +781,9 @@ export class PlayScene extends Phaser.Scene {
       return
     }
     if (this.aiming) return
-    if (Phaser.Geom.Rectangle.Contains(this.pauseRect, x, y - this.cameraY)) return
+    const screenY = y - this.cameraY
+    if (this.consumableBar.contains(x, screenY)) return
+    if (Phaser.Geom.Rectangle.Contains(this.pauseRect, x, screenY)) return
 
     if (this.aimedArmed) {
       const touch = { ...this.ball, r: TUNING.kick.touchRadius }
@@ -750,11 +867,6 @@ export class PlayScene extends Phaser.Scene {
     this.minY = this.ball.y
     this.hint?.setVisible(false)
     this.hint = undefined
-    if (this.magnetStartReady) {
-      this.magnetStartReady = false
-      this.consumeRunItem('magnet')
-      this.activateMagnet()
-    }
   }
 
   private activateMagnet(): void {
@@ -768,12 +880,158 @@ export class PlayScene extends Phaser.Scene {
     )
   }
 
-  /** Gasta uma unidade equipada e persiste; o item some desta run. */
+  private activateShield(): void {
+    this.shieldUntil = this.time.now + TUNING.powerup.shieldDurationMs
+    this.shieldHudAt = 0
+    this.shieldAura.setVisible(true).setPosition(this.ball.x, this.ball.y)
+    this.powerupHud.setShield(
+      true,
+      TUNING.powerup.shieldDurationMs,
+      TUNING.powerup.shieldDurationMs,
+    )
+    this.popLabel('SHIELD!', CSS_PALETTE.shield, true, 92)
+    this.cameras.main.flash(100, 210, 232, 255)
+    this.burst(this.ball.x, this.ball.y, PALETTE.shield, 8)
+  }
+
+  private activateSweet(): void {
+    this.sweetUntil = this.time.now + TUNING.powerup.sweetDurationMs
+    this.sweetHudAt = 0
+    this.sweetMarker.setVisible(true)
+    this.powerupHud.setSweet(
+      true,
+      TUNING.powerup.sweetDurationMs,
+      TUNING.powerup.sweetDurationMs,
+    )
+    this.popLabel('SWEET SPOT!', CSS_PALETTE.sweet, true, 92)
+    this.cameras.main.flash(90, 255, 220, 244)
+    this.burst(this.ball.x, this.ball.y, PALETTE.sweet, 8)
+  }
+
+  /**
+   * Escudo: consome a carga no primeiro contato com obstáculo e devolve a bola
+   * para cima, sem aplicar o efeito original (dreno, estilhaço ou desvio).
+   */
+  private tryShieldSave(
+    obstacle: ObstacleInstance,
+    contact: ObstacleContact,
+  ): boolean {
+    if (this.shieldUntil <= this.time.now) return false
+
+    this.shieldUntil = 0
+    this.shieldAura.setVisible(false)
+    this.powerupHud.setShield(false, 0, TUNING.powerup.shieldDurationMs)
+    if (contact.normal) {
+      const push = (contact.penetration ?? 0) + 2
+      this.ball.x += contact.normal.x * push
+      this.ball.y += contact.normal.y * push
+    }
+    this.ball.vy = TUNING.powerup.shieldRescueVy
+    this.arcApexY = this.ball.y
+    this.bufferedTap = null
+    this.popLabel('SAFE', CSS_PALETTE.shield, true, 88)
+    audio.play('perfect', { pitch: 1.3, volume: 0.75 })
+    this.cameras.main.flash(90, 210, 232, 255)
+    this.burst(this.ball.x, this.ball.y, PALETTE.shield, 7)
+    obstacle.react({ ...contact, result: 'reflect' })
+    gameEvents.emit('obstacleContact', {
+      x: contact.point.x,
+      y: contact.point.y,
+      kind: obstacle.kind,
+      result: 'reflect',
+      strength: contact.strength,
+    })
+    return true
+  }
+
+  /** Mantém os chips de escudo/ponto doce e a aura presos à bola. */
+  private updateTimedPowerups(): void {
+    const now = this.time.now
+
+    if (this.shieldUntil > now) {
+      this.shieldAura.setVisible(true).setPosition(this.ball.x, this.ball.y)
+      if (now >= this.shieldHudAt) {
+        this.shieldHudAt = now + 100
+        this.powerupHud.setShield(
+          true,
+          this.shieldUntil - now,
+          TUNING.powerup.shieldDurationMs,
+        )
+      }
+    } else if (this.shieldUntil !== 0) {
+      this.shieldUntil = 0
+      this.shieldAura.setVisible(false)
+      this.powerupHud.setShield(false, 0, TUNING.powerup.shieldDurationMs)
+    }
+
+    if (this.sweetUntil > now) {
+      this.sweetMarker.setVisible(true)
+      const pulse = 1 + 0.14 * Math.sin(now / 120)
+      this.sweetMarker.setScale(pulse)
+      if (now >= this.sweetHudAt) {
+        this.sweetHudAt = now + 100
+        this.powerupHud.setSweet(
+          true,
+          this.sweetUntil - now,
+          TUNING.powerup.sweetDurationMs,
+        )
+      }
+    } else if (this.sweetUntil !== 0) {
+      this.sweetUntil = 0
+      this.sweetMarker.setVisible(false)
+      this.powerupHud.setSweet(false, 0, TUNING.powerup.sweetDurationMs)
+    }
+  }
+
+  /** Itens que a barra deve mostrar: cargas não usadas + armados aguardando efeito. */
+  private barItems(): ActivatableId[] {
+    const visible = new Set<ActivatableId>()
+    for (const id of ACTIVATABLE_IDS) {
+      if (this.runItems.has(id)) visible.add(id)
+    }
+    if (this.chutaoArmed) visible.add('chutao')
+    if (this.streakSaverArmed) visible.add('streak')
+    return ACTIVATABLE_IDS.filter((id) => visible.has(id))
+  }
+
+  /**
+   * Toque no ícone da barra: gasta a unidade e aplica o efeito. Chutão e
+   * Streak Saver ficam "armados" até o próximo chute/whiff; o ícone permanece
+   * na barra com anel pulsante até o efeito disparar.
+   */
+  private activateConsumable(id: ActivatableId): void {
+    if (this.dead || this.aiming) return
+    if (!this.runItems.has(id)) return
+
+    if (id === 'chutao') this.chutaoArmed = true
+    if (id === 'streak') this.streakSaverArmed = true
+    this.consumeRunItem(id)
+    this.consumableBar.refresh(this.barItems())
+
+    switch (id) {
+      case 'magnet':
+        this.activateMagnet()
+        this.popLabel('MAGNET!', CSS_PALETTE.inkDim, true, 92)
+        audio.play('pickup')
+        break
+      case 'chutao':
+        this.consumableBar.setArmed('chutao', true)
+        this.popLabel('POWER KICK READY', CSS_PALETTE.accent, false, 84)
+        audio.play('ui', { pitch: 1.4 })
+        break
+      case 'streak':
+        this.consumableBar.setArmed('streak', true)
+        this.popLabel('STREAK SAFE READY', CSS_PALETTE.fever, false, 84)
+        audio.play('ui', { pitch: 1.2 })
+        break
+    }
+    gameEvents.emit('consumable', { id })
+  }
+
+  /** Gasta uma unidade equipada e persiste. O item sai do pool desta run. */
   private consumeRunItem(id: ConsumableId): void {
-    this.runItems.delete(id)
+    if (!this.runItems.delete(id)) return
     if (id === 'net') this.netReady = false
-    if (id === 'chutao') this.chutaoReady = false
-    if (id === 'magnet') this.magnetStartReady = false
 
     const save = this.registry.get('save') as SaveV1
     const next = consume(save, id)
@@ -784,19 +1042,27 @@ export class PlayScene extends Phaser.Scene {
   }
 
   /**
-   * Chutão: o primeiro toque válido da run vira um chute de `chutaoSpeed`,
+   * Chutão: depois de ativado, o próximo chute válido usa `chutaoSpeed`,
    * mantendo o ângulo do ponto de toque. Whiff e toque antes do ápice não
-   * gastam a carga; só um chute de verdade consome.
+   * gastam a carga; só um chute de verdade dispara.
    */
   private computeTapKick(x: number, y: number): KickResult {
-    const chutao = this.chutaoReady
+    const chutao = this.chutaoArmed
+    const sweet = this.sweetUntil > this.time.now
     const result = computeKick(this.ball, { x, y }, {
       fallDistance: this.fallDistance(),
       overrideSpeed: chutao ? TUNING.consumable.chutaoSpeed : undefined,
+      perfectWindow: sweet
+        ? TUNING.kick.perfectWindow * TUNING.powerup.sweetWindowScale
+        : undefined,
+      perfectBonus: sweet
+        ? TUNING.perfect.speedBonus * TUNING.powerup.sweetBonusScale
+        : undefined,
     })
     if (result.kind === 'kick' && chutao) {
-      this.chutaoReady = false
-      this.consumeRunItem('chutao')
+      this.chutaoArmed = false
+      this.consumableBar.refresh(this.barItems())
+      this.consumableBar.setArmed('chutao', false)
       this.showChutao()
     }
     return result
@@ -827,8 +1093,12 @@ export class PlayScene extends Phaser.Scene {
         ? 'magnet'
         : this.aimedArmed
           ? 'aimed'
-          : '—'
-    DEBUG_STATE.extra = `obs ${this.obstacles.length} · itv ${this.interactives.length}`
+          : this.shieldUntil > this.time.now
+            ? 'shield'
+            : this.sweetUntil > this.time.now
+              ? 'sweet'
+              : '—'
+    DEBUG_STATE.extra = `obs ${this.obstacles.length} · itv ${this.interactives.length} · goal ${this.goals.length} · items ${[...this.runItems].join(',') || '—'}`
   }
 
   private handleTap(x: number, y: number): void {
@@ -951,6 +1221,15 @@ export class PlayScene extends Phaser.Scene {
 
   private registerWhiff(): void {
     if (this.streak.count === 0) return
+    if (this.streakSaverArmed) {
+      this.streakSaverArmed = false
+      this.consumableBar.refresh(this.barItems())
+      this.consumableBar.setArmed('streak', false)
+      this.popLabel('STREAK SAFE', CSS_PALETTE.fever, false, 62)
+      audio.play('fever', { pitch: 1.4, volume: 0.5 })
+      this.burst(this.ball.x, this.ball.y, PALETTE.fever, 6)
+      return
+    }
     this.streak.registerWhiff()
     this.updateStreakHud()
   }
@@ -1125,7 +1404,16 @@ export class PlayScene extends Phaser.Scene {
     this.aimUi.hide()
     this.powerupHud.setAimed(false)
     this.powerupHud.setMagnet(false, 0, TUNING.powerup.magnetDurationMs)
+    this.powerupHud.setShield(false, 0, TUNING.powerup.shieldDurationMs)
+    this.powerupHud.setSweet(false, 0, TUNING.powerup.sweetDurationMs)
     this.magnetAura.setVisible(false)
+    this.shieldAura.setVisible(false)
+    this.shieldUntil = 0
+    this.sweetUntil = 0
+    this.sweetMarker.setVisible(false)
+    this.consumableBar.refresh([])
+    this.chutaoArmed = false
+    this.streakSaverArmed = false
     this.feverUntil = 0
     this.feverAura.setVisible(false)
     this.feverText.setVisible(false)

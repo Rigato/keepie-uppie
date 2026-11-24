@@ -211,6 +211,26 @@ describe('computeKick', () => {
     )
   })
 
+  it('Ponto Doce amplia a janela do Perfect e o bônus de velocidade', () => {
+    const offset = TUNING.kick.angleRadius * 0.3
+    const normal = computeKick(ball({ vy: 900 }), { x: 270 + offset, y: 500 }, {
+      fallDistance: 0,
+    })
+    const sweet = computeKick(ball({ vy: 900 }), { x: 270 + offset, y: 500 }, {
+      fallDistance: 0,
+      perfectWindow: TUNING.kick.perfectWindow * TUNING.powerup.sweetWindowScale,
+      perfectBonus: TUNING.perfect.speedBonus * TUNING.powerup.sweetBonusScale,
+    })
+
+    expect(normal.perfect).toBe(false)
+    expect(sweet.perfect).toBe(true)
+    expect(Math.hypot(sweet.vx, sweet.vy) - Math.hypot(normal.vx, normal.vy)).toBeCloseTo(
+      TUNING.perfect.speedBonus * TUNING.powerup.sweetBonusScale,
+      5,
+    )
+    expect(TUNING.powerup.sweetWindowScale).toBeGreaterThan(1)
+  })
+
   it('arco do ápice é curto; arco da queda cheia fica na faixa alta', () => {
     const apex = falling(0)
     const full = falling(TUNING.kick.deepFullDrop, 24)

@@ -23,6 +23,14 @@ export const PALETTE = {
   spring: 0xd94f7a,
   magnet: 0x6a55c8,
   aimed: 0xd97a1e,
+  /** Bumper (almofada radial) e Ramp (barra diagonal). */
+  bumper: 0x18a0b8,
+  ramp: 0x6b7f96,
+  /** Powerups de proteção e precisão. */
+  shield: 0x3f8ec9,
+  sweet: 0xc0509a,
+  /** Gol: postes claros com rede accent. */
+  goal: 0xf8f4e8,
   fever: 0xd9661a,
 } as const
 
@@ -34,4 +42,6 @@ export const CSS_PALETTE = {
   ball: '#9a5c0a',
   danger: '#c23a3a',
   fever: '#c25612',
+  shield: '#2f6f9e',
+  sweet: '#a33279',
 } as const

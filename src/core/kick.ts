@@ -32,6 +32,10 @@ export interface KickOptions {
    * curva normal de força é usada.
    */
   overrideSpeed?: number
+  /** Janela central do Perfect (fração do raio de ângulo); o Ponto Doce amplia. */
+  perfectWindow?: number
+  /** Bônus de velocidade do Perfect; o Ponto Doce aumenta. */
+  perfectBonus?: number
   touchRadius?: number
   angleRadius?: number
 }
@@ -71,6 +75,8 @@ export function computeKick(
   const {
     fallDistance = 0,
     overrideSpeed,
+    perfectWindow = TUNING.kick.perfectWindow,
+    perfectBonus = TUNING.perfect.speedBonus,
     touchRadius = TUNING.kick.touchRadius,
     angleRadius = TUNING.kick.angleRadius,
   } = options
@@ -81,7 +87,7 @@ export function computeKick(
   if (ball.vy < -TUNING.kick.apexTolerance) return whiff('notFalling')
 
   const offset = clamp((point.x - ball.x) / Math.max(1, angleRadius), -1, 1)
-  const perfect = Math.abs(offset) <= TUNING.kick.perfectWindow
+  const perfect = Math.abs(offset) <= perfectWindow
 
   const fallRatio = clamp(fallDistance / TUNING.kick.fullPowerDrop, 0, 1)
   const charged = Math.pow(fallRatio, TUNING.kick.powerCurve)
@@ -95,7 +101,7 @@ export function computeKick(
   const deepBoost =
     TUNING.kick.deepBonus * Math.pow(deepRatio, TUNING.kick.deepPowerCurve)
   const chargedSpeed = overrideSpeed ?? baseSpeed + deepBoost
-  const speed = perfect ? chargedSpeed + TUNING.perfect.speedBonus : chargedSpeed
+  const speed = perfect ? chargedSpeed + perfectBonus : chargedSpeed
 
   const maxSpeed = Math.max(
     TUNING.kick.maxSpeed + TUNING.kick.deepBonus,

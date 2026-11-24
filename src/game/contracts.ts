@@ -15,17 +15,29 @@ export type EntityKind =
   | 'soft'
   | 'breakable'
   | 'bird'
+  | 'bumper'
+  | 'ramp'
   | 'coin'
   | 'ring'
   | 'spring'
   | 'pickupMagnet'
   | 'pickupAimed'
+  | 'pickupShield'
+  | 'pickupSweet'
+  | 'goal'
 
-/** Obstáculos que o spawner do MVP1 coloca no caminho. */
-export type ObstacleKind = 'hard' | 'soft' | 'breakable' | 'bird'
+/** Obstáculos que o spawner coloca no caminho. */
+export type ObstacleKind = 'hard' | 'soft' | 'breakable' | 'bird' | 'bumper' | 'ramp'
 
-/** Interativos do MVP1. */
-export type InteractiveKind = 'coin' | 'ring' | 'spring' | 'pickupMagnet' | 'pickupAimed'
+/** Interativos do jogo. */
+export type InteractiveKind =
+  | 'coin'
+  | 'ring'
+  | 'spring'
+  | 'pickupMagnet'
+  | 'pickupAimed'
+  | 'pickupShield'
+  | 'pickupSweet'
 
 export interface InteractiveSpawn {
   kind: InteractiveKind

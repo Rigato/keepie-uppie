@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { circleCircleHit, circleRectHit, reflectVelocity, wallBounce } from '../src/core/collision'
+import {
+  circleCircleHit,
+  circleRectHit,
+  circleRotatedRectHit,
+  reflectVelocity,
+  wallBounce,
+} from '../src/core/collision'
 
 const bar = { x: 100, y: 200, width: 200, height: 20 }
 
@@ -49,6 +55,29 @@ describe('circleCircleHit', () => {
     expect(hit).not.toBeNull()
     expect(hit?.penetration).toBeCloseTo(0, 5)
     expect(circleCircleHit(0, 0, 10, 20.01, 0, 10)).toBeNull()
+  })
+})
+
+describe('circleRotatedRectHit', () => {
+  it('sem rotação se comporta como o retângulo alinhado', () => {
+    const hit = circleRotatedRectHit(200, 190, 10, 200, 200, 120, 14, 0)
+    expect(hit).not.toBeNull()
+    expect(hit?.normal.x).toBeCloseTo(0, 5)
+    expect(hit?.normal.y).toBeCloseTo(-1, 5)
+  })
+
+  it('gira a normal junto com a barra', () => {
+    // Barra 120×14 girada 90° vira uma parede vertical em x=200.
+    const hit = circleRotatedRectHit(190, 200, 10, 200, 200, 120, 14, Math.PI / 2)
+    expect(hit).not.toBeNull()
+    expect(hit?.normal.x).toBeCloseTo(-1, 5)
+    expect(hit?.normal.y).toBeCloseTo(0, 5)
+  })
+
+  it('não acerta longe da barra girada', () => {
+    expect(
+      circleRotatedRectHit(100, 100, 10, 200, 200, 120, 14, Math.PI / 5),
+    ).toBeNull()
   })
 })
 

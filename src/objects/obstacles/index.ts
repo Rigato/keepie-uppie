@@ -2,7 +2,9 @@ import type Phaser from 'phaser'
 import type { ObstacleKind, ObstacleSpawn } from '../../game/contracts'
 import { createBirds } from './birds'
 import { createBreakable } from './breakable'
+import { createBumper } from './bumper'
 import { createHard } from './hard'
+import { createRamp } from './ramp'
 import { createSoft } from './soft'
 import type { ObstacleFactory, ObstacleInstance } from './types'
 
@@ -15,6 +17,8 @@ const FACTORIES: Partial<Record<ObstacleKind, ObstacleFactory>> = {
   soft: createSoft,
   breakable: createBreakable,
   bird: createBirds,
+  bumper: createBumper,
+  ramp: createRamp,
 }
 
 export function createObstacle(

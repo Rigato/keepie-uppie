@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { clamp } from '../../core/math'
 import { PALETTE } from '../../game/palette'
 import { TUNING } from '../../game/tuning'
-import type { InteractiveContact, InteractiveFactory } from './types'
+import type { InteractiveContact, InteractiveFactory, InteractiveKind } from './types'
 
 /** Raio do item (também define a hitbox circular do contato). */
 const PICKUP_RADIUS = TUNING.collect.pickupRadius
@@ -19,15 +19,33 @@ const REACT_MS = 220
 const PARTICLE_COUNT = 6
 const PARTICLE_MS = 320
 
+/** Identificador do powerup devolvido no contato. */
+type PickupId = NonNullable<InteractiveContact['pickup']>
+
+/** Cor e identificador de cada kind de pickup. */
+function resolvePickup(kind: InteractiveKind): { pickup: PickupId; color: number } {
+  switch (kind) {
+    case 'pickupAimed':
+      return { pickup: 'aimed', color: PALETTE.aimed }
+    case 'pickupShield':
+      return { pickup: 'shield', color: PALETTE.shield }
+    case 'pickupSweet':
+      return { pickup: 'sweet', color: PALETTE.sweet }
+    case 'pickupMagnet':
+    default:
+      // Fallback seguro: a fábrica só é registrada para os quatro pickups.
+      return { pickup: 'magnet', color: PALETTE.magnet }
+  }
+}
+
 /**
- * Pickups de powerup: ímã (Magnet) e mira (Aimed Shot).
+ * Pickups de powerup: ímã (Magnet), mira (Aimed Shot), escudo (Shield) e
+ * ponto doce (Sweet Spot).
  * A entidade cuida do desenho, da flutuação e do feedback de coleta;
  * o efeito no gameplay é responsabilidade da cena (F4).
  */
 export const createPickup: InteractiveFactory = (scene, spec) => {
-  const isAimed = spec.kind === 'pickupAimed'
-  const pickup: 'magnet' | 'aimed' = isAimed ? 'aimed' : 'magnet'
-  const color = isAimed ? PALETTE.aimed : PALETTE.magnet
+  const { pickup, color } = resolvePickup(spec.kind)
   // Fase determinística: itens iguais não flutuam nem pulsam em sincronia.
   const phase = clamp(spec.variation, 0, 1) * Math.PI * 2
 
@@ -118,7 +136,95 @@ export const createPickup: InteractiveFactory = (scene, spec) => {
     return icon
   }
 
-  visual.add([makeBase(), isAimed ? makeAimedIcon() : makeMagnetIcon()])
+  /** Ícone de escudo: silhueta sólida, ombros retos e ponta inferior curva. */
+  function makeShieldIcon(): Phaser.GameObjects.Graphics {
+    const icon = scene.add.graphics()
+    const halfWidth = HEX_RADIUS * 0.5
+    const top = -HEX_RADIUS * 0.58
+    const shoulder = -HEX_RADIUS * 0.04
+    const bottom = HEX_RADIUS * 0.7
+    const controlY = bottom * 0.55
+    const steps = 8
+
+    icon.fillStyle(PALETTE.ink, 1)
+    icon.lineStyle(1.4, PALETTE.ink, 1)
+    icon.beginPath()
+    icon.moveTo(-halfWidth, top)
+    icon.lineTo(halfWidth, top)
+    icon.lineTo(halfWidth, shoulder)
+
+    // Lado direito desce em curva até a ponta central do escudo.
+    for (let i = 1; i <= steps; i += 1) {
+      const t = i / steps
+      const inv = 1 - t
+      icon.lineTo(
+        inv * inv * halfWidth + 2 * inv * t * (halfWidth * 0.9),
+        inv * inv * shoulder + 2 * inv * t * controlY + t * t * bottom,
+      )
+    }
+
+    // Lado esquerdo sobe espelhado até o ombro.
+    for (let i = 1; i <= steps; i += 1) {
+      const t = i / steps
+      const inv = 1 - t
+      icon.lineTo(
+        -2 * inv * t * (halfWidth * 0.9) - t * t * halfWidth,
+        inv * inv * bottom + 2 * inv * t * controlY + t * t * shoulder,
+      )
+    }
+
+    icon.closePath()
+    icon.fillPath()
+    icon.strokePath()
+
+    return icon
+  }
+
+  /**
+   * Ícone de ponto doce: anel duplo e ponto central grande, com quatro ticks
+   * diagonais — deliberadamente distinto da mira, que usa ticks cardinais.
+   */
+  function makeSweetIcon(): Phaser.GameObjects.Graphics {
+    const icon = scene.add.graphics()
+    const outerRadius = HEX_RADIUS * 0.6
+    const innerRadius = HEX_RADIUS * 0.33
+    const dotRadius = HEX_RADIUS * 0.24
+    const tickInner = HEX_RADIUS * 0.7
+    const tickOuter = HEX_RADIUS * 0.86
+
+    icon.lineStyle(2.4, PALETTE.ink, 1)
+    icon.strokeCircle(0, 0, outerRadius)
+    icon.lineStyle(1.6, PALETTE.ink, 0.9)
+    icon.strokeCircle(0, 0, innerRadius)
+    icon.fillStyle(PALETTE.ink, 1)
+    icon.fillCircle(0, 0, dotRadius)
+
+    icon.lineStyle(2.4, PALETTE.ink, 1)
+    for (let i = 0; i < 4; i += 1) {
+      const angle = Math.PI / 4 + (i * Math.PI) / 2
+      const cos = Math.cos(angle)
+      const sin = Math.sin(angle)
+      icon.lineBetween(cos * tickInner, sin * tickInner, cos * tickOuter, sin * tickOuter)
+    }
+
+    return icon
+  }
+
+  /** Escolhe o desenho pelo powerup; todos compartilham a mesma base. */
+  function makeIcon(id: PickupId): Phaser.GameObjects.Graphics {
+    switch (id) {
+      case 'aimed':
+        return makeAimedIcon()
+      case 'shield':
+        return makeShieldIcon()
+      case 'sweet':
+        return makeSweetIcon()
+      case 'magnet':
+        return makeMagnetIcon()
+    }
+  }
+
+  visual.add([makeBase(), makeIcon(pickup)])
   root.add([halo, visual])
 
   let spent = false

@@ -19,9 +19,11 @@ export type GameEventMap = {
   coin: { x: number; y: number; value: number; fever: boolean }
   ring: { x: number; y: number }
   spring: { x: number; y: number }
-  pickup: { x: number; y: number; kind: 'magnet' | 'aimed' }
-  powerupStart: { kind: 'magnet' | 'aimed'; durationMs: number }
-  powerupEnd: { kind: 'magnet' | 'aimed' }
+  pickup: { x: number; y: number; kind: 'magnet' | 'aimed' | 'shield' | 'sweet' }
+  consumable: { id: 'magnet' | 'chutao' | 'streak' }
+  goal: { x: number; y: number; coins: number }
+  powerupStart: { kind: 'magnet' | 'aimed' | 'shield' | 'sweet'; durationMs: number }
+  powerupEnd: { kind: 'magnet' | 'aimed' | 'shield' | 'sweet' }
   streak: { count: number; label: string | null }
   feverStart: { durationMs: number }
   feverEnd: Record<string, never>

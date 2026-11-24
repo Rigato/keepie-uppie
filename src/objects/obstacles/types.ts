@@ -13,6 +13,8 @@ export interface ObstacleContact {
   penetration?: number
   /** Obrigatório em 'deflect': impulso a somar na velocidade da bola. */
   impulse?: Vec2
+  /** Restituição do quique; ausente = `physics.wallRestitution`. */
+  restitution?: number
   /** 0..1 para volume/shake/partículas. */
   strength: number
 }

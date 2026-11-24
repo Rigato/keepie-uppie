@@ -16,6 +16,8 @@ const FACTORIES: Partial<Record<InteractiveKind, InteractiveFactory>> = {
   ring: createRing,
   pickupMagnet: createPickup,
   pickupAimed: createPickup,
+  pickupShield: createPickup,
+  pickupSweet: createPickup,
 }
 
 export function createInteractive(

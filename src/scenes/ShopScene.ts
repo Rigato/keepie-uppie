@@ -19,8 +19,9 @@ import { SHOP_CARD_WIDTH, ShopButton, ShopCard } from '../ui/shop-card'
 import { LoadoutPanel } from '../ui/shop-loadout'
 
 const CARD_X = 40
-const CARD_TOPS = [236, 398, 560] as const
-const NOTE_Y = 722
+/** Quatro cards compactos: 118 de altura, gaps de 10. */
+const CARD_TOPS = [216, 344, 472, 600] as const
+const NOTE_Y = 732
 const LOADOUT_Y = 752
 const BACK_Y = 976
 const BUILD_Y = 1040
@@ -74,13 +75,13 @@ export class ShopScene extends Phaser.Scene {
     this.balanceGroup.add([this.balanceCoin, this.balanceText])
 
     this.add
-      .text(width / 2, 180, 'EQUIP UP TO 3 · USED DURING A RUN', {
+      .text(width / 2, 180, 'BUY · EQUIP UP TO 3 · TAP ITEMS IN-GAME', {
         fontFamily: FONT_SANS,
         fontSize: '11px',
         color: CSS_PALETTE.inkDim,
       })
       .setOrigin(0.5)
-      .setLetterSpacing(3)
+      .setLetterSpacing(2)
 
     // Régua discreta separando o cabeçalho dos cards.
     const rule = this.add.graphics()
@@ -107,7 +108,7 @@ export class ShopScene extends Phaser.Scene {
       .text(
         width / 2,
         NOTE_Y,
-        'Coins are earned in runs. Items are used during a run.',
+        'Active items appear in-game: tap to use. Safety Net saves automatically.',
         {
           fontFamily: FONT_SANS,
           fontSize: '11px',

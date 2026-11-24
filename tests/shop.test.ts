@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { CONSUMABLES, LOADOUT_SIZE } from '../src/core/consumables'
+import {
+  CONSUMABLES,
+  CONSUMABLE_IDS,
+  LOADOUT_SIZE,
+  emptyInventory,
+} from '../src/core/consumables'
 import {
   buy,
   canBuy,
@@ -52,7 +57,7 @@ describe('loja: loadout', () => {
   })
 
   it('equipa e desequipa devolvendo o item ao pool', () => {
-    const save = saveWith({ inventory: { net: 1, magnet: 1, chutao: 1 } })
+    const save = saveWith({ inventory: { net: 1, magnet: 1, chutao: 1, streak: 0 } })
     const equipped = toggleEquip(save, 'net')
     expect(isEquipped(equipped, 'net')).toBe(true)
     expect(ownedCount(equipped, 'net')).toBe(1)
@@ -63,7 +68,7 @@ describe('loja: loadout', () => {
   })
 
   it('não repete o mesmo item e respeita o limite de 3 slots', () => {
-    const save = saveWith({ inventory: { net: 1, magnet: 1, chutao: 1 } })
+    const save = saveWith({ inventory: { net: 1, magnet: 1, chutao: 1, streak: 0 } })
     let next = toggleEquip(save, 'net')
     expect(next.loadout).toEqual(['net'])
     expect(canEquip(next, 'net')).toBe(false)
@@ -81,12 +86,12 @@ describe('loja: loadout', () => {
   it('equippedIds ignora item sem posse e repetição', () => {
     const save = saveWith({
       loadout: ['net', 'net', 'magnet', 'chutao'],
-      inventory: { net: 0, magnet: 1, chutao: 1 },
+      inventory: { net: 0, magnet: 1, chutao: 1, streak: 0 },
     })
     expect(equippedIds(save)).toEqual(['magnet', 'chutao'])
     expect(
       equippedIds(
-        saveWith({ loadout: ['net'], inventory: { net: 1, magnet: 0, chutao: 0 } }),
+        saveWith({ loadout: ['net'], inventory: { net: 1, magnet: 0, chutao: 0, streak: 0 } }),
       ),
     ).toEqual(['net'])
   })
@@ -94,7 +99,7 @@ describe('loja: loadout', () => {
 
 describe('loja: consumo', () => {
   it('gasta uma unidade e mantém o loadout enquanto houver posse', () => {
-    const save = saveWith({ inventory: { net: 2, magnet: 0, chutao: 0 }, loadout: ['net'] })
+    const save = saveWith({ inventory: { net: 2, magnet: 0, chutao: 0, streak: 0 }, loadout: ['net'] })
     const once = consume(save, 'net')
     expect(ownedCount(once, 'net')).toBe(1)
     expect(once.loadout).toEqual(['net'])
@@ -105,7 +110,7 @@ describe('loja: consumo', () => {
   })
 
   it('não gasta item inexistente e não muta a entrada', () => {
-    const save = saveWith({ inventory: { net: 1, magnet: 0, chutao: 0 }, loadout: ['net'] })
+    const save = saveWith({ inventory: { net: 1, magnet: 0, chutao: 0, streak: 0 }, loadout: ['net'] })
     expect(consume(save, 'magnet')).toBe(save)
     consume(save, 'net')
     expect(ownedCount(save, 'net')).toBe(1)
@@ -120,5 +125,12 @@ describe('loja: catálogo', () => {
       expect(def.name.length).toBeGreaterThan(0)
       expect(def.description.length).toBeGreaterThan(0)
     }
+  })
+
+  it('tem o Streak Saver ativável e a Safety Net passiva', () => {
+    expect(CONSUMABLES.net.passive).toBe(true)
+    expect(CONSUMABLES.streak.passive).toBe(false)
+    expect(CONSUMABLE_IDS).toContain('streak')
+    expect(emptyInventory().streak).toBe(0)
   })
 })

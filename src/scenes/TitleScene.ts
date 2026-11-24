@@ -26,6 +26,12 @@ export class BootScene extends Phaser.Scene {
 export class TitleScene extends Phaser.Scene {
   private starting = false
   private parallax?: Parallax
+  /**
+   * Bloqueio curto de input depois de a cena nascer. A loja volta para o
+   * título no `pointerup` do BACK, e o mesmo release pode cair no botão SHOP
+   * que fica na mesma coordenada — o lock evita a reabertura acidental.
+   */
+  private inputLockUntil = 0
 
   constructor() {
     super('Title')
@@ -35,6 +41,7 @@ export class TitleScene extends Phaser.Scene {
     const { width, height } = TUNING.world
     const save = this.registry.get('save') as SaveV1
     this.starting = false
+    this.inputLockUntil = this.time.now + 320
 
     const g = this.add.graphics().setDepth(-2)
     g.fillGradientStyle(PALETTE.bgSoft, PALETTE.bgSoft, PALETTE.bg, PALETTE.bg, 1)
@@ -147,7 +154,7 @@ export class TitleScene extends Phaser.Scene {
       .zone(width / 2, shopY, shopWidth, shopHeight)
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
-    shopZone.on('pointerup', () => this.openShop())
+    shopZone.on('pointerdown', () => this.openShop())
 
     this.add
       .text(width / 2, 26, BUILD_LABEL, {
@@ -177,7 +184,7 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private startRun(): void {
-    if (this.starting) return
+    if (this.starting || this.time.now < this.inputLockUntil) return
     this.starting = true
     void audio.unlock()
     audio.play('ui')
@@ -185,7 +192,7 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private openShop(): void {
-    if (this.starting) return
+    if (this.starting || this.time.now < this.inputLockUntil) return
     audio.play('ui')
     this.scene.start('Shop')
   }

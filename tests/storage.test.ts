@@ -39,7 +39,7 @@ describe('SaveStore', () => {
       bestMeters: 123,
       totalCoins: 42,
       muted: true,
-      inventory: { net: 2, magnet: 1, chutao: 0 },
+      inventory: { net: 2, magnet: 1, chutao: 0, streak: 1 },
       loadout: ['net', 'magnet'] as const,
     }
     await store.save({ ...save, loadout: [...save.loadout] })
@@ -118,7 +118,7 @@ describe('sanitizeSave', () => {
       inventory: { net: -3, magnet: 2.9, chutao: 1_000_000, hacked: 5 },
       loadout: ['chutao', 'chutao', 'net', 'magnet', 'unknown', 'hacked'],
     })
-    expect(save.inventory).toEqual({ net: 0, magnet: 2, chutao: 999 })
+    expect(save.inventory).toEqual({ net: 0, magnet: 2, chutao: 999, streak: 0 })
     // chutao tem posse e entra; net foi clampado para 0 e sai; magnet entra;
     // 'unknown'/'hacked' e a repetição de chutao são descartados.
     expect(save.loadout).toEqual(['chutao', 'magnet'])

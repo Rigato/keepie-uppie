@@ -69,16 +69,18 @@ Altitude em **metros** (contador de altura) + moedas coletadas. Best pessoal **l
 | **Hard surface** | quique refletido, ângulo espelhado | sonoro/visual forte e legível |
 | **Soft surface** | a bola afunda e **perde força** (drena velocidade, não desvia) | deforma no contato (varal/toldo) |
 | **Breakable** | bola veloz **estilhaça** e passa; bola lenta é desviada | estilhaço catártico (assinatura de feedback — lição Smash Hit) |
+| **Bumper** | almofada circular que reflete a bola na direção radial; tocar no topo devolve para cima, tocar na lateral desvia | anel radial + squash, som grave curto; nunca estilhaça nem drena |
+| **Ramp** | barra diagonal (~35°) que reflete a bola para o lado, como um hard girado | flash do hard + risco claro ao longo da rampa; som pelo lado do impacto |
 
-**Spawn/composição do mundo:** procedural, densidade crescente com altitude, mix por faixa de altura (lição Doodle Jump: dificuldade por MISTURA). `[regras de spawn e curva de densidade: A Definir — tuning no protótipo; pergunta-chave: densidade por metro ou por tempo de jogo?]`
+**Spawn/composição do mundo:** procedural, densidade crescente com altitude, mix por faixa de altura (lição Doodle Jump: dificuldade por MISTURA). Desde a 0.4.0, Bumper e Ramp entram no mix depois de 300 m (peso 10%/7% na faixa 300–600 m e 15%/13% acima de 600 m, somando 100 por faixa); antes disso o jogador aprende o vocabulário base. `[números: teste]`
 
-### 3.6 Interativos do MVP1
+### 3.6 Interativos (0.4.0)
 - **Rings (argolas):** a bola atravessa = burst de moedas. Dá propósito positivo ao ângulo.
 - **Springs (molas):** lançam a bola alto **sem consumir chute** — rota planejada, atalho ousado (não elevador: posicionamento ganha o valor).
 - **Coins (moedas):** coleta por contato; posicionadas em rota ousada. **Sink desde a 0.3.0:** a loja de consumíveis (ver 3.11).
-- **Pickups de powerup:** spawnam como itens de rota (pegar = decisão de desvio).
+- **Pickups de powerup:** spawnam como itens de rota (pegar = decisão de desvio): Magnet, Aimed Shot, Shield e Sweet Spot.
 
-### 3.7 Powerups do MVP1 (canal: pickups na fase — round 4)
+### 3.7 Powerups (pickups na fase)
 **Aimed Shot** (rounds 3–5):
 - Pickup **arma o próximo toque na bola** — sem prazo (padrão aplicado no round 6; alternativa "expira em X s" fica como variante de tuning).
 - No próximo toque (bola em queda), abre a **pausa de mira**: o arrasto é um **estilingue** — o dedo puxa para trás e a bola sai no sentido **oposto** ao puxão; o comprimento do puxão vira força (limites próprios, fora da faixa normal).
@@ -89,12 +91,25 @@ Altitude em **metros** (contador de altura) + moedas coletadas. Best pessoal **l
 - Puxa moedas próximas por **15s** (valor de TESTE). Re-pegar **reinicia** pra 15s (não soma).
 - Puxa **apenas moedas** — argolas exigem trajetória da bola, não sucção. `[raio de puxão: teste]`
 
+**Shield** (0.4.0):
+- Uma carga, janela de **12 s**: o próximo contato com obstáculo vira um quique amigável para cima, ignorando dreno/estilhaço/desvio. Bolha na bola; **não** salva de queda (isso é da Safety Net).
+- `[CONFIRMAR]` uma carga em 12 s ou todos os contatos por 6 s; Shield + Safety Net podem coexistir na mesma run? A implementação atual permite (a rede é da morte, o escudo é de obstáculo).
+
+**Sweet Spot** (0.4.0):
+- **10 s**: janela do Perfect ×1,8 (0,22 → 0,396) e bônus de velocidade do Perfect ×1,5 (60 → 90). Um ponto central discreto aparece na bola; é alvo, nunca linha de trajetória.
+- `[CONFIRMAR]` o ponto central é aceitável ou o powerup deve ser invisível (só o feedback do Perfect muda)? A implementação mostra o ponto só durante o buff.
+
+#### 3.7.1 Goal — trave/gol (0.4.0)
+Set piece a cada **400–600 m**, nunca antes de 100 m (primeiro em 200 m): moldura de gol com **vão 180×120** e postes de 14. Passar pelo vão = `GOAL!` + **15 moedas**.
+- **Postes** são hard (refletem a bola); o **travessão é sensor visual** (não colide) para o jogador conseguir atravessar o vão. `[CONFIRMAR]` travessão sensor × hard; a proposta original pedia os dois duros, mas um travessão duro fecha a passagem num jogo vertical.
+- `[CONFIRMAR]` recompensa: 15 moedas (recomendado na proposta: 15–25, ou febre curta). O goal nasce acima da câmera e é descartado ao sair por baixo.
+
 ### 3.8 Camadas de skill do MVP1
 - **Perfect Touch:** ver 3.3.
 - **Streak (combo de toques limpos):** chutes limpos consecutivos sobem multiplicador com **rótulos escalonados em EN** (padrão GOOD → SWEET → EXTREME do Icy Tower, nomes finais `[A Definir — tuning]`). No topo: **febre** — moedas valem dobrado por um tempo (padrão fever do Tiny Wings). Quebra em **whiff** (proposta base); se colisão com obstáculo também quebra = `[variante de tuning a testar]`.
 
 ### 3.9 Feedback e legibilidade (pilar 4)
-Nenhuma interação silenciosa: chute (som + squash proporcionais à força — fraco é leve, forte é pesado), desvio (traço + som), drenagem (deformação), estilhaço (partículas), powerup (anúncio + ícone de estado ativo), febre (mudança perceptível do estado). O degrau de ritmo também se anuncia (`FASTER FALLS`), para a dificuldade não parecer bug. Consumíveis têm anúncio e efeito próprios (`SAVED!`, `CHUTÃO!`, chip de Magnet). Tempo de leitura em toda ativação.
+Nenhuma interação silenciosa: chute (som + squash proporcionais à força — fraco é leve, forte é pesado), desvio (traço + som), drenagem (deformação), estilhaço (partículas), powerup (anúncio + ícone de estado ativo), febre (mudança perceptível do estado). O degrau de ritmo também se anuncia (`FASTER FALLS`), para a dificuldade não parecer bug. Consumíveis têm anúncio e efeito próprios (`SAVED!`, `CHUTÃO!`, `STREAK SAFE`, chips de Magnet/Shield/Sweet). O Goal anuncia `GOAL!` com flash e burst, e o objetivo é lido antes de o jogador chegar. Tempo de leitura em toda ativação.
 
 ### 3.10 Casos de borda
 - Whiff com Aimed Shot armado → powerup **permanece armado**.
@@ -104,20 +119,26 @@ Nenhuma interação silenciosa: chute (som + squash proporcionais à força — 
 - Magnet não interage com argolas/pickups (só moedas) `[proposta — tuning]`.
 - Bola lenta no Breakable → desvia; `[velocidade mínima de rompimento: teste]`.
 - Safety Net só dispara depois de a run começar; se o jogador nunca tocou na bola, o consumível não é gasto.
-- Chutão com Aimed Shot armado → o Aimed tem prioridade; o Chutão espera o próximo chute normal.
-- Chutão não é gasto em whiff nem em toque antes do ápice; só um chute válido consome.
-- Magnet Start começa no primeiro toque (quando a run começa), não no spawn.
+- Chutão com Aimed Shot armado → o Aimed tem prioridade; o Chutão armado espera o próximo chute normal.
+- Chutão ativado não dispara em whiff nem em toque antes do ápice; o próximo chute válido usa 2750 u/s. A unidade é gasta na ativação, não no chute.
+- Magnet agora é ativável: o ícone gasta a unidade no toque e liga 15 s na hora; não existe mais o "Magnet Start" automático no primeiro toque.
+- Streak Saver ativado protege o próximo whiff; se o streak estiver em 0, o whiff não gasta a proteção (não há o que salvar).
+- Shield e Safety Net podem coexistir: o Shield cobre contato com obstáculo, a rede cobre a morte.
+- Goal: o travessão é sensor, não hard; os postes refletem. Passar pelo vão conta mesmo tocando a rede visual.
 
-### 3.11 Consumíveis da loja (0.3.0)
+### 3.11 Consumíveis da loja (0.4.0)
 Modelo: **3 slots, sem duplicatas, com devolução ao pool**. Comprar adiciona ao inventário; equipar não gasta; usar gasta uma unidade. Quando a última unidade sai, o item também sai do loadout. A loja é o sink das moedas e abre pelo título e pela tela de morte.
+
+**Ativação na run:** os consumíveis ativáveis equipados ganham **um ícone na barra inferior esquerda** (até 3). Tocar no ícone gasta **uma unidade** e aplica o efeito na hora; a barra mostra anel pulsante enquanto Chutão/Streak Saver esperam o gatilho. Cada tipo equipado dá **uma carga por run** (comprar mais unidades serve para runs futuras). A Safety Net é passiva: não tem ícone e gasta a unidade só quando salva.
 
 | Consumível (EN/PT) | Efeito | Preço `[TESTE]` |
 |---|---|---:|
-| **Safety Net** / Rede de Proteção | Na morte, depois de a run ter começado, a bola reaparece 180 u acima da linha de morte com 1500 u/s para cima. Uma carga; a run continua e conta como normal. | 50 |
-| **Magnet Start** / Ímã Inicial | O primeiro toque da run ativa o Magnet por 15 s, com o mesmo raio/puxão do pickup. | 30 |
-| **Power Kick** / Chutão | O primeiro chute válido da run sai a **2750 u/s**, mantendo o ângulo do ponto de toque; o Perfect soma +60 (2810, abaixo da mola em 2850). Whiff não gasta. | 40 |
+| **Safety Net** / Rede de Proteção | Passiva. Na morte, depois de a run ter começado, a bola reaparece 180 u acima da linha de morte com 1500 u/s para cima. Uma carga; a run continua e conta como normal. | 50 |
+| **Magnet** / Ímã | Ativável. Toque no ícone = Magnet por 15 s, com o mesmo raio/puxão do pickup. | 30 |
+| **Power Kick** / Chutão | Ativável. Toque no ícone arma; o próximo chute válido sai a **2750 u/s**, mantendo o ângulo do ponto de toque; o Perfect soma +60 (2810, abaixo da mola em 2850). Whiff não dispara. | 40 |
+| **Streak Saver** / Salva-Streak | Ativável. Toque no ícone arma; o próximo whiff não quebra o streak. Não protege contra morte nem contra obstáculo. | 25 |
 
-`[CONFIRMAR]` preços, o gatilho do Chutão (primeiro chute) e a força da rede (1500 u/s / 180 u). A Safety Net foi decidida nos rounds 3–4; Magnet Start e Power Kick entraram como hipótese de loja v1. O detalhamento de design e as alternativas estão em `docs/proposta-conteudo-0.3.md`.
+`[CONFIRMAR]` preços 50/30/40/25, a regra de **uma carga por tipo por run**, o gatilho do Chutão (ativar e depois chutar) e a força da rede (1500 u/s / 180 u). A Safety Net foi decidida nos rounds 3–4; Magnet, Power Kick e Streak Saver entraram no Ciclo 0.4. O detalhamento de design e as alternativas estão em `docs/proposta-conteudo-0.3.md`.
 
 ---
 
@@ -127,7 +148,7 @@ Modelo: **3 slots, sem duplicatas, com devolução ao pool**. Comprar adiciona a
 
 **Dentro da run:** altitude (placar), streak (multiplicador), moedas (coleta), rotas ousadas vs. seguras.
 
-**Economia (0.3.0):** a **loja de consumíveis** é o sink. Preços `[TESTE]` 50 (Safety Net), 30 (Magnet Start) e 40 (Power Kick). A moeda compra segurança, ritmo ou economia para uma run — nunca poder permanente. O MVP1 nasceu sem sink para validar a coleta e o Magnet; a 0.3.0 adicionou a saída.
+**Economia (0.4.0):** a **loja de consumíveis** é o sink. Preços `[TESTE]` 50 (Safety Net), 30 (Magnet), 40 (Power Kick) e 25 (Streak Saver). A moeda compra segurança, ritmo ou proteção para uma run — nunca poder permanente. O MVP1 nasceu sem sink para validar a coleta e o Magnet; a 0.3.0 adicionou a saída e a 0.4.0 tornou três dos quatro itens ativáveis na barra da run.
 
 **Pós-MVP (já decidido em rounds 3–4):** save por AD 1x/run opt-in na tela de morte; placar online só se o jogo merecer. A loja, o loadout de 3 slots e a rede de proteção saíram do pós-MVP e entraram na 0.3.0.
 
@@ -143,13 +164,13 @@ Modelo: **3 slots, sem duplicatas, com devolução ao pool**. Comprar adiciona a
 
 **Áudio:** `[A Definir — Próximos Passos]`. Pergunta-chave: primeiro o vocabulário de feedback (chute/quique/estilhaço/moeda) ou tudo de uma vez? Música dinâmica é pós-MVP.
 
-**Textos in-game:** **inglês** (diretriz de audiência internacional). Nomenclatura oficial: Keepie-Uppie (título de trabalho), Perfect Touch, Streak, Aimed Shot, Magnet, Power Kick (consumível, 0.3.0; PT: Chutão).
+**Textos in-game:** **inglês** (diretriz de audiência internacional). Nomenclatura oficial: Keepie-Uppie (título de trabalho), Perfect Touch, Streak, Aimed Shot, Magnet, Shield, Sweet Spot, Power Kick (consumível; PT: Chutão), Safety Net, Streak Saver, Bumper, Ramp, Goal.
 
 ---
 
 ## 6. Escopo e Roadmap (MVP vs. Pós-MVP)
 
-**Ritmo de referência:** ~7h/semana em sessões curtas. O MVP1 foi o foco único até o playtest; o **Ciclo 0.3** abriu identidade (bola/damping) e economia (loja), mas conteúdo novo de obstáculos/powerups continua atrás da aprovação do playtest e da proposta `docs/proposta-conteudo-0.3.md`.
+**Ritmo de referência:** ~7h/semana em sessões curtas. O MVP1 foi o foco único até o playtest; o **Ciclo 0.3** abriu identidade (bola/damping) e economia (loja); o **Ciclo 0.4** adicionou os seis itens do tier "Próximo" da proposta (Bumper, Ramp, Shield, Sweet Spot, Streak Saver e Goal) e transformou Magnet/Chutão em ativáveis. Ainda falta o playtest formal antes da publicação.
 
 ### MVP1 (base entregue na F7 — validado em rounds 5–6)
 | Bloco | Conteúdo |
@@ -174,6 +195,16 @@ Time-Warp · multiball · zero-G · câmera-creep (vira knob de tuning só no pl
 | Docs | `docs/release/fix11-bola-damping-e-loja.md` · `docs/proposta-conteudo-0.3.md` |
 
 ### Pós-MVP (decidido, aguardando o playtest)
-Save-AD · Time-Warp · biomas · multiball (se provar valor) · online (se merecer) · os itens de conteúdo da proposta 0.3 (Bumper, Ramp, Shield, Sweet Spot, Goal etc.), aprovados pelo usuário antes de entrar.
+Save-AD · Time-Warp · biomas · multiball (se provar valor) · online (se merecer) · os itens do tier "Depois" da proposta 0.3 (Crosswind, Shutter, Midas, Volley, Biome, Daily Modifier), aprovados pelo usuário antes de entrar.
+
+### Ciclo 0.4 — ativáveis e conteúdo "Próximo" (implementado)
+| Bloco | Conteúdo |
+|---|---|
+| Ativação | barra de consumíveis na run (canto inferior esquerdo) com Magnet, Power Kick e Streak Saver; toque gasta a unidade e aplica/arma. Safety Net continua passiva. |
+| Objetos | Bumper (almofada radial), Ramp (barra diagonal 35°), Goal (trave a cada 400–600 m, +15 moedas) |
+| Powerups | Shield (12 s, 1 carga contra obstáculo) · Sweet Spot (10 s, Perfect ×1,8 e +90) |
+| Consumíveis | Magnet (15 s), Power Kick (próximo chute 2750), Streak Saver (próximo whiff), Safety Net (passiva) |
+| Loja | 4 cards compactos; BACK corrigido (sem reabrir a loja no release) |
+| Docs | `docs/release/fix12-ativaveis-e-conteudo.md` · `docs/proposta-conteudo-0.3.md` |
 
 **Gate de validação:** o playtest do MVP1 decide tudo que vem depois — diversão se valida no jogável, não no documento.

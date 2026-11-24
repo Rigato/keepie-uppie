@@ -77,4 +77,27 @@ describe('InteractiveSpawner', () => {
     const longo = run(new InteractiveSpawner(41), 900).length
     expect(longo).toBeGreaterThan(curto * 3)
   })
+
+  it('não sorteia Shield antes de 200 m nem Sweet Spot antes de 300 m', () => {
+    for (const spec of run(new InteractiveSpawner(63), 199)) {
+      expect(spec.kind).not.toBe('pickupShield')
+      expect(spec.kind).not.toBe('pickupSweet')
+    }
+    for (const spec of run(new InteractiveSpawner(64), 299)) {
+      expect(spec.kind).not.toBe('pickupSweet')
+    }
+  })
+
+  it('introduz Shield e Sweet Spot nas altitudes certas', () => {
+    let shield = false
+    let sweet = false
+    for (let seed = 1; seed < 120 && !(shield && sweet); seed += 1) {
+      for (const spec of run(new InteractiveSpawner(seed), 1800)) {
+        if (spec.kind === 'pickupShield') shield = true
+        if (spec.kind === 'pickupSweet') sweet = true
+      }
+    }
+    expect(shield).toBe(true)
+    expect(sweet).toBe(true)
+  })
 })

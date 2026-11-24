@@ -79,6 +79,21 @@ describe('ObstacleSpawner', () => {
     }
   })
 
+  it('não usa Bumper nem Ramp antes de 300 m', () => {
+    const early = run(new ObstacleSpawner(101), 299)
+    expect(early.some((spec) => spec.kind === 'bumper')).toBe(false)
+    expect(early.some((spec) => spec.kind === 'ramp')).toBe(false)
+  })
+
+  it('introduz Bumper e Ramp depois de 300 m', () => {
+    let both = false
+    for (let seed = 1; seed < 120 && !both; seed += 1) {
+      const kinds = new Set(run(new ObstacleSpawner(seed), 2400).map((spec) => spec.kind))
+      both = kinds.has('bumper') && kinds.has('ramp')
+    }
+    expect(both).toBe(true)
+  })
+
   it('respeita o teto de eventos por atualização', () => {
     const spawner = new ObstacleSpawner(3)
     const specs = spawner.update({ cameraTop: -10_000, meters: 10_000, ballX: 270 })

@@ -12,7 +12,7 @@ export interface InteractiveContact {
   /** Moedas entregues no contato (1 na moeda; burst na argola). */
   coins?: number
   /** Qual powerup foi pego. */
-  pickup?: 'magnet' | 'aimed'
+  pickup?: 'magnet' | 'aimed' | 'shield' | 'sweet'
 }
 
 /**

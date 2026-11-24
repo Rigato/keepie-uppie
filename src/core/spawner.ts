@@ -23,7 +23,14 @@ export interface SpawnInput {
   ballX: number
 }
 
-const KIND_ORDER: readonly ObstacleKind[] = ['hard', 'soft', 'breakable', 'bird']
+const KIND_ORDER: readonly ObstacleKind[] = [
+  'hard',
+  'soft',
+  'breakable',
+  'bird',
+  'bumper',
+  'ramp',
+]
 
 interface Dimensions {
   width: number
@@ -41,6 +48,10 @@ function dimensionsFor(kind: ObstacleKind): Dimensions {
       return { width: o.breakableWidth, height: o.breakableHeight }
     case 'bird':
       return { width: o.birdWidth, height: o.birdHeight }
+    case 'bumper':
+      return { width: o.bumperRadius * 2, height: o.bumperRadius * 2 }
+    case 'ramp':
+      return { width: o.rampWidth, height: o.rampHeight }
   }
 }
 

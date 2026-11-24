@@ -90,6 +90,51 @@ export function circleCircleHit(
   }
 }
 
+/**
+ * Colisão círculo × retângulo rotacionado em torno do próprio centro.
+ * O retângulo é descrito pelo centro, largura, altura e ângulo (radianos).
+ * A conta gira o círculo para o espaço local, usa `circleRectHit` e devolve
+ * ponto e normal no espaço do mundo.
+ */
+export function circleRotatedRectHit(
+  cx: number,
+  cy: number,
+  radius: number,
+  centerX: number,
+  centerY: number,
+  width: number,
+  height: number,
+  angleRad: number,
+): CollisionHit | null {
+  const cos = Math.cos(angleRad)
+  const sin = Math.sin(angleRad)
+  const dx = cx - centerX
+  const dy = cy - centerY
+  // Rotaciona o centro da bola por -ângulo para o espaço local do retângulo.
+  const localX = dx * cos + dy * sin
+  const localY = -dx * sin + dy * cos
+
+  const hit = circleRectHit(localX, localY, radius, {
+    x: -width / 2,
+    y: -height / 2,
+    width,
+    height,
+  })
+  if (!hit) return null
+
+  // Ponto e normal locais voltam para o mundo com +ângulo.
+  const pointX = hit.point.x * cos - hit.point.y * sin
+  const pointY = hit.point.x * sin + hit.point.y * cos
+  return {
+    point: { x: centerX + pointX, y: centerY + pointY },
+    normal: {
+      x: hit.normal.x * cos - hit.normal.y * sin,
+      y: hit.normal.x * sin + hit.normal.y * cos,
+    },
+    penetration: hit.penetration,
+  }
+}
+
 /** Reflexão especular em torno da normal. */
 export function reflectVelocity(
   vx: number,

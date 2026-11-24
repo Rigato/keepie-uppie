@@ -4,43 +4,45 @@ import { canBuy, canEquip, isEquipped, ownedCount } from '../core/shop'
 import { FONT_MONO, FONT_SANS } from '../game/config'
 import { CSS_PALETTE, PALETTE } from '../game/palette'
 import type { SaveV1 } from '../platform/storage'
+import { CONSUMABLE_COLORS, drawConsumableIcon } from './consumable-icons'
 
 export const SHOP_CARD_WIDTH = 460
-export const SHOP_CARD_HEIGHT = 146
+export const SHOP_CARD_HEIGHT = 118
 
-/** Cor de identidade de cada consumível (ícone, borda e slot do loadout). */
-export const CONSUMABLE_COLORS: Record<ConsumableId, number> = {
-  net: PALETTE.accent,
-  magnet: PALETTE.magnet,
-  chutao: PALETTE.aimed,
-}
-
-const CARD_RADIUS = 14
-const ICON_SIZE = 64
-const BUTTON_WIDTH = 120
-const BUTTON_HEIGHT = 44
-/** Área de toque maior que o desenho do botão: dedo no celular. */
-const BUTTON_TOUCH_WIDTH = 146
-const BUTTON_TOUCH_HEIGHT = 54
+const CARD_RADIUS = 12
+/** Moldura do ícone; o desenho compartilhado usa 60 para ficar legível. */
+const ICON_SIZE = 56
+const ICON_DRAW_SIZE = 60
+const BUTTON_WIDTH = 112
+const BUTTON_HEIGHT = 36
+/**
+ * Área de toque bem maior que o desenho. Os dois botões do card ficam com as
+ * zonas quase encostadas no meio do card, deslocadas para fora, sem sobrepor.
+ */
+const BUTTON_TOUCH_WIDTH = 124
+const BUTTON_TOUCH_HEIGHT = 56
+const BUTTON_TOUCH_OFFSET = 7
+/** Distância entre os centros dos dois botões empilhados. */
+const BUTTON_GAP = 44
 
 /** Texto claro sobre o botão primário (teal escuro). */
 const TEXT_ON_DARK = '#f8f4e8'
 
 /**
- * Coordenadas locais ao centro do card. As posições do layout são absolutas
- * (x do card = 40); estas constantes já descontam o centro (230, 73).
+ * Coordenadas locais ao centro do card (230, 59). A coluna de texto termina
+ * antes da coluna dos botões, que ocupam a direita do card.
  */
 const LOCAL = {
-  iconX: -182,
-  iconY: -15,
-  textX: -134,
-  nameY: -53,
-  descriptionY: -27,
-  priceY: 39,
-  ownedX: -30,
+  iconX: -186,
+  iconY: 0,
+  textX: -142,
+  nameY: -44,
+  descriptionY: -20,
+  priceY: 20,
+  ownedX: 92,
   buttonX: 160,
-  buyY: -30,
-  equipY: 28,
+  buyY: -BUTTON_GAP / 2,
+  equipY: BUTTON_GAP / 2,
 } as const
 
 export type ShopButtonVariant = 'primary' | 'secondary' | 'active'
@@ -52,6 +54,8 @@ export interface ShopButtonOptions {
   variant?: ShopButtonVariant
   touchWidth?: number
   touchHeight?: number
+  /** Desloca a área de toque no eixo Y sem mover o desenho do botão. */
+  touchOffsetY?: number
   fontSize?: string
   letterSpacing?: number
   onClick: () => void
@@ -59,7 +63,9 @@ export interface ShopButtonOptions {
 
 /**
  * Botão da loja: fundo em Graphics, rótulo em Text e uma Zone de toque maior
- * que o desenho. Desabilitado fica translúcido e não recebe input.
+ * que o desenho. O clique dispara no `pointerup` — trocar de cena no
+ * `pointerdown` deixava o release cair na cena seguinte e reabrir a loja.
+ * Desabilitado fica translúcido e não recebe input.
  */
 export class ShopButton {
   readonly root: Phaser.GameObjects.Container
@@ -71,6 +77,7 @@ export class ShopButton {
   private readonly onClick: () => void
   private enabled = false
   private hovered = false
+  private pressed = false
   private variant: ShopButtonVariant = 'secondary'
 
   constructor(
@@ -98,7 +105,7 @@ export class ShopButton {
     this.hit = scene.add
       .zone(
         0,
-        0,
+        options.touchOffsetY ?? 0,
         options.touchWidth ?? BUTTON_TOUCH_WIDTH,
         options.touchHeight ?? BUTTON_TOUCH_HEIGHT,
       )
@@ -112,10 +119,13 @@ export class ShopButton {
     })
     this.hit.on('pointerout', () => {
       this.hovered = false
+      // Sair da área cancela o clique: só vale o release sobre o botão.
+      this.pressed = false
       this.draw()
     })
     this.hit.on('pointerdown', () => {
-      if (!this.enabled) return
+      if (!this.enabled || this.pressed) return
+      this.pressed = true
       scene.tweens.add({
         targets: this.root,
         scaleX: 0.96,
@@ -124,7 +134,16 @@ export class ShopButton {
         yoyo: true,
         ease: 'Quad.out',
       })
+    })
+    this.hit.on('pointerup', () => {
+      // O guard evita dois cliques no mesmo toque (e o clique duplo acidental).
+      if (!this.pressed) return
+      this.pressed = false
+      if (!this.enabled) return
       this.onClick()
+    })
+    this.hit.on('pointerupoutside', () => {
+      this.pressed = false
     })
 
     this.set(options.label, true, options.variant ?? 'secondary')
@@ -148,6 +167,7 @@ export class ShopButton {
       } else {
         this.hit.disableInteractive()
         this.hovered = false
+        this.pressed = false
       }
     }
 
@@ -250,7 +270,7 @@ export class ShopCard {
       LOCAL.iconY - ICON_SIZE / 2,
       ICON_SIZE,
       ICON_SIZE,
-      12,
+      11,
     )
     tile.lineStyle(1, this.color, 0.3)
     tile.strokeRoundedRect(
@@ -258,50 +278,58 @@ export class ShopCard {
       LOCAL.iconY - ICON_SIZE / 2,
       ICON_SIZE,
       ICON_SIZE,
-      12,
+      11,
     )
     this.root.add(tile)
 
     const icon = scene.add.graphics()
-    drawConsumableIcon(icon, id, LOCAL.iconX, LOCAL.iconY, this.color)
+    drawConsumableIcon(
+      icon,
+      id,
+      LOCAL.iconX,
+      LOCAL.iconY,
+      this.color,
+      ICON_DRAW_SIZE,
+    )
     this.root.add(icon)
 
     this.root.add(
       scene.add
         .text(LOCAL.textX, LOCAL.nameY, def.name, {
           fontFamily: FONT_SANS,
-          fontSize: '20px',
+          fontSize: '18px',
           color: CSS_PALETTE.ink,
           fontStyle: 'bold',
         })
-        .setLetterSpacing(0.5),
+        .setLetterSpacing(0.3),
     )
 
     this.root.add(
       scene.add.text(LOCAL.textX, LOCAL.descriptionY, def.description, {
         fontFamily: FONT_SANS,
-        fontSize: '13px',
+        fontSize: '11px',
         color: CSS_PALETTE.inkDim,
-        wordWrap: { width: 210 },
+        wordWrap: { width: 234 },
+        lineSpacing: 1,
       }),
     )
 
     this.root.add(
       scene.add.text(LOCAL.textX, LOCAL.priceY, `${def.price} COINS`, {
         fontFamily: FONT_MONO,
-        fontSize: '14px',
+        fontSize: '13px',
         color: CSS_PALETTE.ball,
         fontStyle: 'bold',
       }),
     )
 
     this.ownedText = scene.add
-      .text(LOCAL.ownedX, LOCAL.priceY, 'OWNED 0', {
+      .text(LOCAL.ownedX, LOCAL.priceY + 2, 'OWNED 0', {
         fontFamily: FONT_MONO,
-        fontSize: '12px',
+        fontSize: '11px',
         color: CSS_PALETTE.inkDim,
       })
-      .setOrigin(0, 0)
+      .setOrigin(1, 0)
     this.root.add(this.ownedText)
 
     this.buyButton = new ShopButton(scene, LOCAL.buttonX, LOCAL.buyY, {
@@ -309,7 +337,8 @@ export class ShopCard {
       width: BUTTON_WIDTH,
       height: BUTTON_HEIGHT,
       variant: 'primary',
-      fontSize: '15px',
+      touchOffsetY: -BUTTON_TOUCH_OFFSET,
+      fontSize: '14px',
       onClick: () => handlers.onBuy(id),
     })
     this.equipButton = new ShopButton(scene, LOCAL.buttonX, LOCAL.equipY, {
@@ -317,7 +346,8 @@ export class ShopCard {
       width: BUTTON_WIDTH,
       height: BUTTON_HEIGHT,
       variant: 'secondary',
-      fontSize: '15px',
+      touchOffsetY: BUTTON_TOUCH_OFFSET,
+      fontSize: '14px',
       onClick: () => handlers.onEquip(id),
     })
     this.root.add([this.buyButton.root, this.equipButton.root])
@@ -353,128 +383,4 @@ export class ShopCard {
       ease: 'Quad.out',
     })
   }
-}
-
-/** Ícones desenhados com Graphics: sem emoji, legíveis em qualquer fonte. */
-function drawConsumableIcon(
-  g: Phaser.GameObjects.Graphics,
-  id: ConsumableId,
-  cx: number,
-  cy: number,
-  color: number,
-): void {
-  switch (id) {
-    case 'net':
-      drawShieldIcon(g, cx, cy, color)
-      return
-    case 'magnet':
-      drawMagnetIcon(g, cx, cy, color)
-      return
-    case 'chutao':
-      drawPowerKickIcon(g, cx, cy, color)
-      return
-  }
-}
-
-function drawShieldIcon(
-  g: Phaser.GameObjects.Graphics,
-  cx: number,
-  cy: number,
-  color: number,
-): void {
-  const points = [
-    new Phaser.Geom.Point(cx, cy - 23),
-    new Phaser.Geom.Point(cx + 19, cy - 14),
-    new Phaser.Geom.Point(cx + 17, cy + 5),
-    new Phaser.Geom.Point(cx, cy + 24),
-    new Phaser.Geom.Point(cx - 17, cy + 5),
-    new Phaser.Geom.Point(cx - 19, cy - 14),
-  ]
-
-  g.fillStyle(color, 0.14)
-  g.fillPoints(points, true)
-  g.lineStyle(2.5, color, 1)
-  g.strokePoints(points, true)
-
-  // Checkmark: "salva uma vez", sem depender de texto.
-  g.lineStyle(3, color, 1)
-  g.beginPath()
-  g.moveTo(cx - 8, cy + 1)
-  g.lineTo(cx - 2, cy + 8)
-  g.lineTo(cx + 10, cy - 8)
-  g.strokePath()
-}
-
-function drawMagnetIcon(
-  g: Phaser.GameObjects.Graphics,
-  cx: number,
-  cy: number,
-  color: number,
-): void {
-  const radius = 14
-  const top = cy
-  const leg = 12
-
-  g.lineStyle(8, color, 1)
-  g.beginPath()
-  g.arc(cx, top, radius, Math.PI, Math.PI * 2, false)
-  g.moveTo(cx - radius, top)
-  g.lineTo(cx - radius, top + leg)
-  g.moveTo(cx + radius, top)
-  g.lineTo(cx + radius, top + leg)
-  g.strokePath()
-
-  // Polos dourados, como o ímã do powerup.
-  g.fillStyle(PALETTE.coin, 1)
-  g.fillRect(cx - radius - 4, top + leg - 3, 8, 9)
-  g.fillRect(cx + radius - 4, top + leg - 3, 8, 9)
-  g.lineStyle(1, PALETTE.ballShade, 0.8)
-  g.strokeRect(cx - radius - 4, top + leg - 3, 8, 9)
-  g.strokeRect(cx + radius - 4, top + leg - 3, 8, 9)
-}
-
-function drawPowerKickIcon(
-  g: Phaser.GameObjects.Graphics,
-  cx: number,
-  cy: number,
-  color: number,
-): void {
-  // Linhas de velocidade atrás da bola.
-  g.lineStyle(2.5, color, 0.5)
-  g.lineBetween(cx - 30, cy - 14, cx - 12, cy - 14)
-  g.lineBetween(cx - 32, cy - 6, cx - 10, cy - 6)
-  g.lineBetween(cx - 28, cy + 2, cx - 14, cy + 2)
-
-  // Chuteira.
-  const boot = [
-    new Phaser.Geom.Point(cx - 28, cy + 13),
-    new Phaser.Geom.Point(cx - 4, cy + 11),
-    new Phaser.Geom.Point(cx + 5, cy + 18),
-    new Phaser.Geom.Point(cx + 1, cy + 25),
-    new Phaser.Geom.Point(cx - 30, cy + 25),
-  ]
-  g.fillStyle(color, 0.95)
-  g.fillPoints(boot, true)
-  g.lineStyle(2, PALETTE.ink, 0.55)
-  g.lineBetween(cx - 31, cy + 26, cx + 3, cy + 26)
-
-  // Bola em primeiro plano, com gomo e costuras.
-  const bx = cx + 8
-  const by = cy - 8
-  const radius = 14
-  g.fillStyle(PALETTE.ballBase, 1)
-  g.fillCircle(bx, by, radius)
-  g.lineStyle(2.5, color, 1)
-  g.strokeCircle(bx, by, radius)
-
-  g.fillStyle(PALETTE.ballPatch, 0.9)
-  g.fillCircle(bx, by, 4.5)
-
-  g.lineStyle(1.5, PALETTE.ballPatch, 0.55)
-  g.beginPath()
-  g.arc(bx, by, radius - 3.5, -0.55, 0.55)
-  g.strokePath()
-  g.beginPath()
-  g.arc(bx, by, radius - 3.5, Math.PI - 0.55, Math.PI + 0.55)
-  g.strokePath()
 }

@@ -9,11 +9,23 @@ const KIND_ORDER: readonly InteractiveKind[] = [
   'spring',
   'pickupMagnet',
   'pickupAimed',
+  'pickupShield',
+  'pickupSweet',
 ]
 
 export interface InteractiveSpawnInput {
   cameraTop: number
   meters: number
+}
+
+/** Alguns powerups só entram depois que o jogador aprendeu o básico. */
+const MIN_METERS: Partial<Record<InteractiveKind, number>> = {
+  pickupShield: 200,
+  pickupSweet: 300,
+}
+
+function minMetersFor(kind: InteractiveKind): number {
+  return MIN_METERS[kind] ?? 0
 }
 
 /** Folga lateral por tipo, para o item nunca nascer encostado na parede. */
@@ -28,6 +40,8 @@ function paddingFor(kind: InteractiveKind): number {
       return c.springWidth / 2
     case 'pickupMagnet':
     case 'pickupAimed':
+    case 'pickupShield':
+    case 'pickupSweet':
       return c.pickupRadius
   }
 }
@@ -66,14 +80,22 @@ export class InteractiveSpawner {
     return lerp(TUNING.interactive.startStepMeters, TUNING.interactive.minStepMeters, t)
   }
 
-  private pickKind(): InteractiveKind {
+  private pickKind(meters: number): InteractiveKind {
     const weights = TUNING.interactive.weights
     const total = weights.reduce<number>((sum, weight) => sum + weight, 0)
-    let roll = this.rng() * total
-    for (let i = 0; i < KIND_ORDER.length; i += 1) {
-      roll -= weights[i] ?? 0
-      if (roll <= 0) return KIND_ORDER[i] ?? 'coin'
+    // Repete algumas vezes para não sortear um item bloqueado por altitude.
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      let roll = this.rng() * total
+      for (let i = 0; i < KIND_ORDER.length; i += 1) {
+        roll -= weights[i] ?? 0
+        if (roll <= 0) {
+          const kind = KIND_ORDER[i] ?? 'coin'
+          if (meters >= minMetersFor(kind)) return kind
+          break
+        }
+      }
     }
+    // Fallback seguro: moeda sempre pode nascer.
     return 'coin'
   }
 
@@ -91,7 +113,7 @@ export class InteractiveSpawner {
   }
 
   private make(input: InteractiveSpawnInput): InteractiveSpawn[] {
-    const kind = this.pickKind()
+    const kind = this.pickKind(input.meters)
     const variation = this.rng()
 
     if (kind === 'coin') {

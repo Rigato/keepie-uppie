@@ -160,6 +160,15 @@ export const TUNING = {
     flockSize: 4,
     flockDurationMs: 3600,
     birdDeflect: 260,
+    /** Bumper: almofada circular que reflete a bola na direção radial. [TESTE] */
+    bumperRadius: 34,
+    bumperRestitution: 0.9,
+    bumperCooldownMs: 350,
+    /** Ramp: barra diagonal; ângulo em graus e espessura. [TESTE] */
+    rampWidth: 120,
+    rampHeight: 14,
+    rampAngleDeg: 35,
+    rampRestitution: 0.95,
     /** Evita múltiplos contatos do mesmo obstáculo no mesmo toque. */
     contactCooldownMs: 120,
     /** Obstáculos abaixo desta margem da câmera são descartados. */
@@ -183,11 +192,16 @@ export const TUNING = {
     /** Faixa (dentro da tela) onde o bando entra. */
     birdBandTop: 140,
     birdBandHeight: 180,
-    /** Pesos por faixa de altitude: [hard, soft, breakable, bird]. */
+    /**
+     * Pesos por faixa de altitude: [hard, soft, breakable, bird, bumper, ramp].
+     * Bumper e Ramp só ganham peso depois de 300 m: até lá o jogador aprende
+     * o vocabulário base. Os pesos somam 100 em cada faixa. [TESTE]
+     */
     mix: [
-      { maxMeters: 120, weights: [55, 30, 15, 0] },
-      { maxMeters: 300, weights: [40, 25, 20, 15] },
-      { maxMeters: 1_000_000, weights: [30, 20, 25, 25] },
+      { maxMeters: 120, weights: [55, 30, 15, 0, 0, 0] },
+      { maxMeters: 300, weights: [40, 25, 20, 15, 0, 0] },
+      { maxMeters: 600, weights: [28, 18, 20, 17, 10, 7] },
+      { maxMeters: 1_000_000, weights: [20, 14, 18, 20, 15, 13] },
     ],
   },
 
@@ -221,8 +235,8 @@ export const TUNING = {
     coinArc: 28,
     edgeMargin: 44,
     maxPerUpdate: 2,
-    /** Pesos: moeda, argola, mola, magnet, aimed. */
-    weights: [55, 20, 10, 10, 5],
+    /** Pesos: moeda, argola, mola, magnet, aimed, shield, sweet. */
+    weights: [50, 18, 10, 9, 5, 4, 4],
   },
 
   powerup: {
@@ -243,6 +257,19 @@ export const TUNING = {
     /** Raio de puxão (−20% da calibração anterior); a aura acompanha. [TESTE] */
     magnetRadius: 144,
     magnetPullSpeed: 620,
+    /**
+     * Escudo: janela com uma carga. O próximo contato com obstáculo vira um
+     * quique amigável para cima, ignorando dreno/estilhaço/desvio. [TESTE]
+     */
+    shieldDurationMs: 12000,
+    shieldRescueVy: -750,
+    /**
+     * Ponto Doce: janela do Perfect ×1.8 e bônus de velocidade ×1.5 (60→90).
+     * É um buff de precisão, não uma linha de trajetória. [TESTE]
+     */
+    sweetDurationMs: 10000,
+    sweetWindowScale: 1.8,
+    sweetBonusScale: 1.5,
   },
 
   consumable: {
@@ -254,10 +281,25 @@ export const TUNING = {
     /** Quanto acima da linha de morte a bola reaparece depois da rede. [TESTE] */
     netRescueY: 180,
     /**
-     * Velocidade do primeiro chute quando o Chutão está equipado. Fica acima do
-     * chute de fundo (2600) e abaixo da mola (2850); o Perfect soma +60. [TESTE]
+     * Velocidade do chute quando o Chutão é ativado. Fica acima do chute de
+     * fundo (2600) e abaixo da mola (2850); o Perfect soma +60. [TESTE]
      */
     chutaoSpeed: 2750,
+  },
+
+  goal: {
+    /** Primeiro gol depois de o jogador já ter pegado o ritmo. [TESTE] */
+    firstAtMeters: 200,
+    minGapMeters: 400,
+    maxGapMeters: 600,
+    /** Vão do gol (entre postes) e espessura dos postes. [TESTE] */
+    gapWidth: 180,
+    gapHeight: 120,
+    postThickness: 14,
+    /** Bônus em moedas ao atravessar o vão. [TESTE] */
+    coinBonus: 15,
+    /** Gol nasce acima do topo da câmera. */
+    aboveTop: 170,
   },
 
   streak: {

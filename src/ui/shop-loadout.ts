@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { CONSUMABLES, LOADOUT_SIZE, type ConsumableId } from '../core/consumables'
 import { FONT_MONO, FONT_SANS } from '../game/config'
 import { CSS_PALETTE, PALETTE } from '../game/palette'
-import { CONSUMABLE_COLORS } from './shop-card'
+import { CONSUMABLE_COLORS } from './consumable-icons'
 
 const SLOT_WIDTH = 140
 const SLOT_HEIGHT = 72

@@ -212,6 +212,53 @@ async function main() {
       return `canvas CSS ${boot.width}x${boot.height} · cena Title ativa`
     })
 
+    await runStep('Loja: BACK não reabre a loja', async () => {
+      // A loja volta ao título no release do BACK, que fica na mesma
+      // coordenada do botão SHOP do título. Este passo é a regressão do bug.
+      await sleep(400)
+      const canvas = await page.evaluate(() => {
+        const rect = document.querySelector('#game-root canvas')?.getBoundingClientRect()
+        return rect
+          ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+          : null
+      })
+      if (!canvas) throw new Error('canvas sem tamanho')
+
+      const toCss = (worldX, worldY) => ({
+        x: canvas.left + (worldX / WORLD_WIDTH) * canvas.width,
+        y: canvas.top + (worldY / WORLD_HEIGHT) * canvas.height,
+      })
+
+      const shopButton = toCss(270, 977)
+      await page.mouse.click(shopButton.x, shopButton.y)
+      await poll(
+        () =>
+          page.evaluate(() => {
+            const game = window.keepie?.game
+            return game?.scene?.getScene('Shop')?.scene?.isActive?.() === true
+          }),
+        { timeout: TIMEOUT.play, interval: 40, label: 'cena Shop ativa' },
+      )
+
+      const backButton = toCss(270, 976)
+      await page.mouse.click(backButton.x, backButton.y)
+      await sleep(500)
+
+      const afterBack = await page.evaluate(() => {
+        const game = window.keepie?.game
+        return {
+          title: game?.scene?.getScene('Title')?.scene?.isActive?.() === true,
+          shop: game?.scene?.getScene('Shop')?.scene?.isActive?.() === true,
+        }
+      })
+      if (!afterBack.title || afterBack.shop) {
+        throw new Error(
+          `esperava Title ativo e Shop inativo; recebi ${JSON.stringify(afterBack)}`,
+        )
+      }
+      return 'Shop → BACK → Title, sem reabrir a loja'
+    })
+
     await runStep('Título: primeiro toque', async () => {
       const x = Math.round(VIEWPORT.width / 2)
       const y = Math.round(VIEWPORT.height * 0.7)
