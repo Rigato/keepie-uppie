@@ -60,7 +60,7 @@ A lógica pura está em `src/core/consumables.ts` e `src/core/shop.ts` (compra, 
 - **Damping no browser**: 1800 → 1440 → 1152 → 922 → 737 → 590 → 472; razão 0,8 por quique.
 - **Fluxo da loja no browser**: 500 moedas → comprar net/magnet/chutao (380 restantes), equipar os 3 (loadout 3/3), voltar ao título, iniciar a run. Primeiro chute: **2750 u/s**, Magnet **15000 ms**, inventário de chutão/magnet zerado e loadout só com net. `die()` com a rede: `dead=false`, `vy=-1500`, bola a 180 u acima da linha, net consumida; segundo `die()` mata. Botão SHOP da morte abre a loja.
 - **Capturas 390×844**: título com a bola a 58 u, gameplay a 30 u, loja com os 3 cards e a tela de morte com SHOP.
-- Pacote validado: 3 arquivos, 1.276,8 KiB descompactado, **352,3 KiB** zipado, maior path 25. O pacote foi gerado com `GITHUB_SHA=$(git rev-parse HEAD)`; o label mostra `b3a0d98` e o `index-DBEYNAd7.js` é o mesmo do live, então a dívida antiga do `dev` não aparece neste ZIP.
+- Pacote validado: 3 arquivos, 1.276,8 KiB descompactado, **352,3 KiB** zipado, maior path 25. O pacote foi gerado com `GITHUB_SHA` do commit de código (`b3a0d98`), então o label não mostra `dev`; commits seguintes só de docs podem rebuildar o Pages com outro SHA, mas o código é o mesmo.
 
 ## `[CONFIRMAR]` — pendente do seu teste
 
