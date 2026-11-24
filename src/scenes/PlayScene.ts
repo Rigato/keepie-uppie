@@ -50,6 +50,8 @@ export class PlayScene extends Phaser.Scene {
   private meters = 0
   private coins = 0
   private cameraY = 0
+  /** Ponto mais alto da trajetória desde o último chute: base da força do toque. */
+  private arcApexY = 0
   private lastWholeMeters = -1
   private wasBest = false
   private spawner = new ObstacleSpawner()
@@ -94,6 +96,7 @@ export class PlayScene extends Phaser.Scene {
     this.retryReady = false
     this.startY = this.ball.y
     this.minY = this.ball.y
+    this.arcApexY = this.ball.y
     this.meters = 0
     this.coins = 0
     this.cameraY = 0
@@ -321,6 +324,7 @@ export class PlayScene extends Phaser.Scene {
     )
     b.x += b.vx * dt
     b.y += b.vy * dt
+    if (b.y < this.arcApexY) this.arcApexY = b.y
 
     if (b.x - r < wall) {
       b.x = wall + r
@@ -506,6 +510,7 @@ export class PlayScene extends Phaser.Scene {
       case 'launch': {
         this.ball.vy = -TUNING.collect.springLaunchSpeed
         this.ball.vx *= 0.85
+        this.arcApexY = this.ball.y
         audio.play('spring')
         this.cameras.main.shake(90, 0.004)
         gameEvents.emit('spring', { x: contact.point.x, y: contact.point.y })
@@ -653,6 +658,7 @@ export class PlayScene extends Phaser.Scene {
 
     this.ball.vx = shot.dir.x * shot.speed
     this.ball.vy = shot.dir.y * shot.speed
+    this.arcApexY = this.ball.y
     this.lastArc((2 * shot.speed) / TUNING.physics.gravity, shot.ratio)
     this.markStarted()
     this.registerCleanKick(false)
@@ -705,7 +711,7 @@ export class PlayScene extends Phaser.Scene {
     }
     this.bufferedTap = null
 
-    const result = computeKick(this.ball, { x, y })
+    const result = computeKick(this.ball, { x, y }, { fallDistance: this.fallDistance() })
     if (result.kind === 'whiff') {
       if (result.reason === 'miss') {
         audio.play('whiff')
@@ -741,7 +747,11 @@ export class PlayScene extends Phaser.Scene {
       return
     }
 
-    const result = computeKick(this.ball, { x: buffered.x, y: buffered.y })
+    const result = computeKick(
+      this.ball,
+      { x: buffered.x, y: buffered.y },
+      { fallDistance: this.fallDistance() },
+    )
     if (result.kind !== 'kick') {
       // Se a bola se afastou do toque guardado, desiste em vez de chutar longe.
       if (result.reason === 'miss') this.bufferedTap = null
@@ -756,23 +766,31 @@ export class PlayScene extends Phaser.Scene {
     this.applyKick(result)
   }
 
+  /** Queda desde o ápice; alimenta a curva de força do próximo chute. */
+  private fallDistance(): number {
+    return Math.max(0, this.ball.y - this.arcApexY)
+  }
+
   private applyKick(result: KickResult): void {
     this.ball.vx = result.vx
     this.ball.vy = result.vy
+    this.arcApexY = this.ball.y
     this.lastArc(result.arcTime, result.power)
 
     if (!this.started) this.markStarted()
     this.registerCleanKick(result.perfect)
 
+    const power = result.power
     audio.play(result.perfect ? 'perfect' : 'kick', {
-      pitch: result.perfect ? 1 : 0.95 + result.power * 0.1,
+      pitch: result.perfect ? 1 : 0.9 + power * 0.16,
+      volume: 0.7 + power * 0.3,
     })
-    this.cameras.main.shake(60, TUNING.fx.shakeKick)
+    this.cameras.main.shake(50 + 40 * power, TUNING.fx.shakeKick * (0.5 + power))
     this.tweens.add({
       targets: this.ballView,
-      scaleX: 1.18,
-      scaleY: 0.82,
-      duration: 70,
+      scaleX: 1.1 + 0.12 * power,
+      scaleY: 0.9 - 0.12 * power,
+      duration: 60 + 30 * power,
       yoyo: true,
       ease: 'Quad.out',
     })

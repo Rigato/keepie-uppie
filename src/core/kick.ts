@@ -19,6 +19,17 @@ export interface KickResult {
   arcTime: number
 }
 
+export interface KickOptions {
+  /**
+   * Distância caída desde o ápice da trajetória, em unidades de mundo.
+   * É a medida principal da força: o teto de velocidade de queda saturaria o
+   * bônus cedo demais, então a altura perdida continua contando.
+   */
+  fallDistance?: number
+  touchRadius?: number
+  angleRadius?: number
+}
+
 export function isInsideBall(ball: BallLike, point: Vec2): boolean {
   const dx = point.x - ball.x
   const dy = point.y - ball.y
@@ -31,17 +42,27 @@ export function clamp(value: number, min: number, max: number): number {
 
 /**
  * Regra central do jogo: só se chuta bola em queda. O ângulo é oposto ao ponto
- * de toque; a força vem da velocidade de encontro, com piso de segurança.
- * O alvo de toque (`touchRadius`) é maior que a área do ângulo (`angleRadius`):
- * o jogador pode tocar um pouco fora da bola sem perder o chute, mas a mira
- * continua com a calibração de 60 u (centro = reto, borda do ângulo = máximo).
+ * de toque; a força vem da distância caída desde o ápice (`fallDistance`) —
+ * quanto mais baixo o toque, mais alto o chute. Tocar no ápice é uma
+ * embaixadinha curta; esperar a queda é o risco que paga a altura.
+ *
+ * O Perfect Touch soma um bônus pequeno de velocidade, mas não substitui o
+ * timing: um perfect no ápice continua sendo um chute curto. O alvo de toque
+ * (`touchRadius`) é maior que a área do ângulo (`angleRadius`): o jogador pode
+ * tocar um pouco fora da bola sem perder o chute, mas a mira continua com a
+ * calibração de 60 u (centro = reto, borda do ângulo = máximo).
  */
 export function computeKick(
   ball: BallLike,
   point: Vec2,
-  touchRadius = TUNING.kick.touchRadius,
-  angleRadius = TUNING.kick.angleRadius,
+  options: KickOptions = {},
 ): KickResult {
+  const {
+    fallDistance = 0,
+    touchRadius = TUNING.kick.touchRadius,
+    angleRadius = TUNING.kick.angleRadius,
+  } = options
+
   if (!isInsideBall({ ...ball, r: touchRadius }, point)) return whiff('miss')
   // Eixo Y cresce para baixo: bola em queda tem vy > 0. Perto do ápice a
   // velocidade é ~0; toleramos uma subida mínima para o toque não "sumir".
@@ -50,13 +71,11 @@ export function computeKick(
   const offset = clamp((point.x - ball.x) / Math.max(1, angleRadius), -1, 1)
   const perfect = Math.abs(offset) <= TUNING.kick.perfectWindow
 
-  const speed = perfect
-    ? TUNING.perfect.speed
-    : clamp(
-        TUNING.kick.baseSpeed + TUNING.kick.impactFactor * ball.vy,
-        TUNING.kick.minSpeed,
-        TUNING.kick.maxSpeed,
-      )
+  const fallRatio = clamp(fallDistance / TUNING.kick.fullPowerDrop, 0, 1)
+  const charged = Math.pow(fallRatio, TUNING.kick.powerCurve)
+  const baseSpeed =
+    TUNING.kick.minSpeed + (TUNING.kick.maxSpeed - TUNING.kick.minSpeed) * charged
+  const speed = perfect ? baseSpeed + TUNING.perfect.speedBonus : baseSpeed
 
   const lateral = TUNING.kick.maxLateral * Math.abs(offset)
   const angleFactor = Math.sqrt(1 - lateral * lateral)

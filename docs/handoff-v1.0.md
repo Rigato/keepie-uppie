@@ -11,7 +11,7 @@
 | **Status** | MVP01 implementado (F0–F7); em ciclo de ajustes guiado pelo feedback do usuário, **aguardando o veredito da 0.1.3** |
 | **Fonte de design** | `docs/gdd-keepie-uppie.md` (o GDD vence qualquer conflito com este documento) |
 
-> **Atualização (23/11/2026):** a build publicada agora é **`0.1.6-mvp1`**. O veredito da 0.1.3 foi "ainda difícil e não divertido"; a resposta foi a rodada de queda/toque/câmera (`fix4`), seguida do céu claro + paralaxe (`fix5`) e, agora, nuvens mais evidentes + Aimed Shot no esquema estilingue (`docs/release/fix6-nuvens-e-estilingue.md`). O restante deste handoff descreve o estado da 0.1.3 e continua válido como mapa do projeto.
+> **Atualização (24/11/2026):** a build publicada agora é **`0.1.7-mvp1`**. O veredito da 0.1.3 foi "ainda difícil e não divertido"; a resposta foi a rodada de queda/toque/câmera (`fix4`), o céu claro + paralaxe (`fix5`), nuvens + Aimed Shot estilingue (`fix6`) e, agora, a força do chute pela queda desde o ápice (`docs/release/fix7-forca-da-queda.md`). O restante deste handoff descreve o estado da 0.1.3 e continua válido como mapa do projeto.
 
 Este handoff é autossuficiente para uma nova sessão de IA continuar sem o histórico da conversa. Leia também `AGENTS.md`.
 
@@ -31,7 +31,7 @@ Este handoff é autossuficiente para uma nova sessão de IA continuar sem o hist
 ## 1. O jogo em uma página
 
 - **Gênero:** arcade de skill/timing, endless vertical, um input (toque/mouse).
-- **Core:** só se chuta bola **em queda**; o ângulo é oposto ao lado do toque; a força vem da velocidade de encontro, com piso.
+- **Core:** só se chuta bola **em queda**; o ângulo é oposto ao lado do toque; a força vem da queda desde o ápice (ápice curto, queda cheia alto).
 - **Morte:** a bola cruza o fundo da tela. Nenhum obstáculo mata — ele perturba, desvia ou drena.
 - **Conteúdo do MVP:** hard, soft, breakable, birds/bando; moedas, argolas, molas, pickups; Magnet e Aimed Shot; Perfect Touch, streak e febre.
 - **Meta:** melhor altitude e moedas totais no dispositivo (sem loja/saves de run).

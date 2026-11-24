@@ -27,17 +27,26 @@ export const TUNING = {
   },
 
   kick: {
-    /** Força básica somada à velocidade de encontro. */
-    baseSpeed: 1100,
     /**
-     * Quanto da velocidade de queda vira força. Comprimido de propósito:
-     * deixar a bola cair dá um bônus, mas tocar no ápice não condena o arco.
+     * Piso: toque no ápice é um pulinho curto (~0.8 s de arco, ~5 m de
+     * ganho). O risco de esperar a queda é o que paga a altura; tocar cedo
+     * não pode render o mesmo que tocar no fundo. [TESTE]
      */
-    impactFactor: 0.4,
-    /** Piso: toque hesitante ainda dá um arco de ~1.7 s. [TESTE] */
-    minSpeed: 1100,
-    /** Teto da faixa normal: arco de ~2.4 s. [TESTE] */
+    minSpeed: 500,
+    /** Teto da faixa normal: queda cheia, arco de ~2.4 s. [TESTE] */
     maxSpeed: 1550,
+    /**
+     * Queda (u) desde o ápice que satura a força. A velocidade de queda tem
+     * teto em `physics.maxFallSpeed`, então é a distância caída que continua
+     * recompensando o jogador que espera a bola descer mais. [TESTE]
+     */
+    fullPowerDrop: 640,
+    /**
+     * Expoente da curva de queda (<1). Dá força já nos primeiros trechos e
+     * evita um "vale" em que esperar um pouco renderia menos ganho líquido
+     * do que tocar no ápice. [TESTE]
+     */
+    powerCurve: 0.85,
     /** Componente lateral máxima no toque na borda. */
     maxLateral: 0.75,
     /** Janela central para o Perfect Touch, em fração do raio de ângulo. [TESTE] */
@@ -82,8 +91,12 @@ export const TUNING = {
   },
 
   perfect: {
-    /** Força aplicada no perfect: topo da faixa. */
-    speed: 1550,
+    /**
+     * Bônus de velocidade do Perfect Touch (u/s), somado depois da curva de
+     * queda. É pequeno e pode passar um pouco do teto normal: o perfect
+     * premia a mira sem substituir o timing. [TESTE]
+     */
+    speedBonus: 60,
   },
 
   obstacle: {

@@ -23,7 +23,7 @@
 
 **Pilares de design** (testáveis contra qualquer decisão futura):
 1. **O dedo é o pé.** Todo chute nasce do toque direto na bola; a posição do toque no corpo da bola define o ângulo (oposto, como chutar uma bola de verdade). *Teste:* qualquer mecânica que peça mira/aim-UI no jogo base é rejeitada — mira existe só como powerup raro.
-2. **Ritmo de embaixadinha.** Só se chuta bola em queda; arcos calibrados pra ~1.5–2.5s de voo. *Teste:* qualquer pausa no tempo real precisa ser item-powerup consciente e raro (Aimed Shot é a única).
+2. **Ritmo de embaixadinha.** Só se chuta bola em queda; o toque no ápice rende uma embaixadinha curta (~0.8s de arco) e a queda cheia chega a ~2.5s — a altura é a recompensa por esperar a bola descer. *Teste:* qualquer pausa no tempo real precisa ser item-powerup consciente e raro (Aimed Shot é a única).
 3. **Perturbar, nunca matar.** Obstáculos desviam, drenam ou estilhaçam — nenhum mata no contato. A única morte é a queda. *Teste:* cada obstáculo novo responde "isso cria recuperação ou encerra o show?". Encerrar = rejeitado.
 4. **Legibilidade radical.** Todo evento tem tempo de leitura — animação/feedback antes de o jogo exigir ação de volta (round 4, do usuário). *Teste:* o jogador nunca pergunta "o que acabou de acontecer?".
 
@@ -31,7 +31,7 @@
 
 ## 2. Core Loop
 
-**Segundo-a-segundo:** a bola sobe, desce; você espera a queda e toca nela → chute (ângulo pelo ponto de toque, força pela velocidade de encontro). Atravessa argolas, cata moedas, desvia ou rompe obstáculos, quica nas paredes. Errou o toque (whiff)? Nada acontece — só o tempo passa.
+**Segundo-a-segundo:** a bola sobe, desce; você espera a queda e toca nela → chute (ângulo pelo ponto de toque, força pela distância caída desde o ápice). Atravessa argolas, cata moedas, desvia ou rompe obstáculos, quica nas paredes. Errou o toque (whiff)? Nada acontece — só o tempo passa.
 
 **Minuto-a-minuto:** densidade e mix de obstáculos crescem com a altitude; rotas ousadas (argolas altas, molas, moedas perto do perigo) pagam mais; o streak de toques limpos sobe com rótulos até a febre; pickups mudam o momento (mira carregada, íma ativo).
 
@@ -45,8 +45,8 @@
 - Toque/click **na bola em queda** = chute (rounds 2 e 5).
 - **Ângulo:** distância do ponto de toque ao centro da bola define o ângulo lateral, sempre **oposto** (toca na esquerda → sobe pra direita), como uma bola de verdade. Centro = chute reto.
 - Sem avatar; sem UI de mira; sem preview (PC incluído).
-- **Força:** velocidade de encontro no momento do toque (bola caindo rápido = lance mais alto) com **piso de força mínima** — toque hesitante não vira espiral de morte (round 3).
-- **Faixa (banda):** chutes normais calibrados pro arco durar ~1.5–2.5s de voo (round 4; número = teste).
+- **Força:** a bola acelera ao cair e o chute devolve essa queda em altura. Quanto mais a bola desce desde o ápice, mais forte o chute; tocar no ápice é uma embaixadinha curta. A distância caída continua contando mesmo depois do teto de velocidade de queda (`maxFallSpeed`), então esperar mais baixo continua pagando. `[curva: teste]`
+- **Faixa (banda):** arcos de ~0.8s no toque de ápice a ~2.5s na queda cheia (round 4; número = teste). O piso curto é intencional: é o custo de tocar cedo, não uma espiral de morte — o jogador recebe outro toque durante a queda.
 
 ### 3.2 Whiff
 Toque que erra a bola **não faz nada**: sem chute, sem penalidade, a bola segue caindo. Custo = tempo perdido + pânico (round 3).
@@ -56,7 +56,7 @@ Toque que erra a bola **não faz nada**: sem chute, sem penalidade, a bola segue
 - **Câmera:** catraca — sobe com a bola, **nunca desce**.
 - **Linha de morte:** o fundo da tela; sobe com o progresso. Bola cruza o fundo = fim da run (rounds 1–2).
 - **Paredes laterais:** a bola **quica** nas bordas da tela; sem wrap-around.
-- **Perfect Touch (C1):** janela central da bola — acertar = "PERFECT", força no topo da faixa + celebração curta. `[valor da janela: teste]`
+- **Perfect Touch (C1):** janela central da bola — acertar = "PERFECT", **bônus pequeno de velocidade somado ao chute** + celebração curta. O perfect não substitui o timing: no ápice, o chute continua curto. `[janela e bônus: teste]`
 
 ### 3.4 Placar
 Altitude em **metros** (contador de altura) + moedas coletadas. Best pessoal **local** no dispositivo (rounds 3–4). Runs com save contarão como normais (decidido — save não existe no MVP1).
@@ -93,7 +93,7 @@ Altitude em **metros** (contador de altura) + moedas coletadas. Best pessoal **l
 - **Streak (combo de toques limpos):** chutes limpos consecutivos sobem multiplicador com **rótulos escalonados em EN** (padrão GOOD → SWEET → EXTREME do Icy Tower, nomes finais `[A Definir — tuning]`). No topo: **febre** — moedas valem dobrado por um tempo (padrão fever do Tiny Wings). Quebra em **whiff** (proposta base); se colisão com obstáculo também quebra = `[variante de tuning a testar]`.
 
 ### 3.9 Feedback e legibilidade (pilar 4)
-Nenhuma interação silenciosa: chute (som + squash da bola), desvio (traço + som), drenagem (deformação), estilhaço (partículas), powerup (anúncio + ícone de estado ativo), febre (mudança perceptível do estado). Tempo de leitura em toda ativação.
+Nenhuma interação silenciosa: chute (som + squash proporcionais à força — fraco é leve, forte é pesado), desvio (traço + som), drenagem (deformação), estilhaço (partículas), powerup (anúncio + ícone de estado ativo), febre (mudança perceptível do estado). Tempo de leitura em toda ativação.
 
 ### 3.10 Casos de borda
 - Whiff com Aimed Shot armado → powerup **permanece armado**.
@@ -138,7 +138,7 @@ Nenhuma interação silenciosa: chute (som + squash da bola), desvio (traço + s
 ### MVP1 (ESTE build — validado em rounds 5–6)
 | Bloco | Conteúdo |
 |---|---|
-| Core | controle A, força por encontro + piso, whiff neutro, início de run, câmera-catraca, paredes, morte por queda |
+| Core | controle A, força pela queda desde o ápice + piso curto, whiff neutro, início de run, câmera-catraca, paredes, morte por queda |
 | Placar | altitude em metros + moedas; best local |
 | Obstáculos | Birds (+bando), Hard, Soft, Breakable |
 | Interativos | Rings, Springs, Coins, pickups |

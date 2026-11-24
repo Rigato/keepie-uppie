@@ -7,9 +7,19 @@ function ball(overrides: Partial<BallLike> = {}): BallLike {
   return { x: 270, y: 500, vx: 0, vy: 0, r: TUNING.ball.radius, ...overrides }
 }
 
+function falling(fallDistance: number, offset = 0) {
+  return computeKick(
+    ball({ vy: TUNING.physics.maxFallSpeed }),
+    { x: 270 + offset, y: 500 },
+    { fallDistance },
+  )
+}
+
 describe('computeKick', () => {
   it('acerta o centro: chute reto para cima', () => {
-    const result = computeKick(ball({ vy: 900 }), { x: 270, y: 500 })
+    const result = computeKick(ball({ vy: 900 }), { x: 270, y: 500 }, {
+      fallDistance: TUNING.kick.fullPowerDrop,
+    })
     expect(result.kind).toBe('kick')
     expect(result.vx).toBe(0)
     expect(result.vy).toBeLessThan(0)
@@ -17,14 +27,18 @@ describe('computeKick', () => {
   })
 
   it('inverte o lado do toque: tocar na esquerda sobe à direita', () => {
-    const result = computeKick(ball({ vy: 900 }), { x: 270 - 18, y: 500 })
+    const result = computeKick(ball({ vy: 900 }), { x: 270 - 18, y: 500 }, {
+      fallDistance: TUNING.kick.fullPowerDrop,
+    })
     expect(result.kind).toBe('kick')
     expect(result.vx).toBeGreaterThan(0)
     expect(result.offset).toBeCloseTo(-18 / TUNING.kick.angleRadius, 5)
   })
 
   it('tocar na direita sobe à esquerda', () => {
-    const result = computeKick(ball({ vy: 900 }), { x: 270 + 22, y: 500 })
+    const result = computeKick(ball({ vy: 900 }), { x: 270 + 22, y: 500 }, {
+      fallDistance: TUNING.kick.fullPowerDrop,
+    })
     expect(result.vx).toBeLessThan(0)
   })
 
@@ -74,20 +88,59 @@ describe('computeKick', () => {
     expect(result.offset).toBe(1)
   })
 
-  it('chute no ápice ainda tem arco de verdade', () => {
-    const result = computeKick(ball({ vy: 0 }), { x: 270, y: 500 })
-    expect(result.kind).toBe('kick')
-    expect(result.arcTime).toBeGreaterThanOrEqual(1.5)
-    expect(result.arcTime).toBeLessThanOrEqual(2.5)
+  it('toque no ápice é curto; queda cheia chega ao topo da faixa', () => {
+    const apex = falling(0)
+    const full = falling(TUNING.kick.fullPowerDrop, 24)
+    const apexSpeed = Math.hypot(apex.vx, apex.vy)
+    const fullSpeed = Math.hypot(full.vx, full.vy)
+
+    expect(apex.kind).toBe('kick')
+    expect(apexSpeed).toBeGreaterThanOrEqual(TUNING.kick.minSpeed)
+    expect(apex.power).toBeLessThan(0.1)
+    expect(apex.arcTime).toBeGreaterThanOrEqual(0.75)
+    expect(apex.arcTime).toBeLessThanOrEqual(0.95)
+    expect(fullSpeed).toBeCloseTo(TUNING.kick.maxSpeed, 5)
+    expect(full.arcTime).toBeGreaterThanOrEqual(2.3)
+    expect(full.arcTime).toBeLessThanOrEqual(2.5)
   })
 
-  it('deixar a bola cair até o teto dá bônus de força sem virar outro jogo', () => {
-    const apex = computeKick(ball({ vy: 0 }), { x: 270 + 24, y: 500 })
-    const terminal = computeKick(ball({ vy: TUNING.physics.maxFallSpeed }), { x: 270 + 24, y: 500 })
-    const apexSpeed = Math.hypot(apex.vx, apex.vy)
-    const terminalSpeed = Math.hypot(terminal.vx, terminal.vy)
-    expect(terminalSpeed).toBeGreaterThan(apexSpeed)
-    expect(terminalSpeed / apexSpeed).toBeLessThan(1.5)
+  it('a força cresce a cada trecho da queda', () => {
+    const drops = [0, 160, 320, 480, TUNING.kick.fullPowerDrop]
+    const speeds = drops.map((drop) => {
+      const kick = falling(drop)
+      return Math.hypot(kick.vx, kick.vy)
+    })
+    for (let i = 1; i < speeds.length; i += 1) {
+      expect(speeds[i]).toBeGreaterThan(speeds[i - 1] ?? 0)
+    }
+  })
+
+  it('a queda satura no teto da faixa', () => {
+    const full = falling(TUNING.kick.fullPowerDrop, 24)
+    const extra = falling(TUNING.kick.fullPowerDrop * 3, 24)
+    expect(Math.hypot(extra.vx, extra.vy)).toBeCloseTo(Math.hypot(full.vx, full.vy), 5)
+    expect(Math.hypot(extra.vx, extra.vy)).toBeCloseTo(TUNING.kick.maxSpeed, 5)
+  })
+
+  it('Perfect soma um bônus, mas não anula o timing', () => {
+    const apexNormal = computeKick(ball({ vy: 0 }), { x: 270 + 24, y: 500 }, {
+      fallDistance: 0,
+    })
+    const apexPerfect = computeKick(ball({ vy: 0 }), { x: 270 + 4, y: 500 }, {
+      fallDistance: 0,
+    })
+    const fullPerfect = computeKick(ball({ vy: 900 }), { x: 270 + 4, y: 500 }, {
+      fallDistance: TUNING.kick.fullPowerDrop,
+    })
+
+    const normalSpeed = Math.hypot(apexNormal.vx, apexNormal.vy)
+    const perfectSpeed = Math.hypot(apexPerfect.vx, apexPerfect.vy)
+    const fullSpeed = Math.hypot(fullPerfect.vx, fullPerfect.vy)
+
+    expect(apexPerfect.perfect).toBe(true)
+    expect(perfectSpeed).toBeGreaterThan(normalSpeed)
+    expect(perfectSpeed).toBeLessThan(fullSpeed)
+    expect(apexPerfect.arcTime).toBeLessThan(1.0)
   })
 
   it('a queda máxima passa tempo suficiente dentro do alvo de toque', () => {
@@ -95,41 +148,22 @@ describe('computeKick', () => {
     expect(windowSeconds).toBeGreaterThanOrEqual(0.15)
   })
 
-  it('força cresce com a velocidade de encontro', () => {
-    const slow = computeKick(ball({ vy: 300 }), { x: 270 + 30, y: 500 })
-    const fast = computeKick(ball({ vy: 1600 }), { x: 270 + 30, y: 500 })
-    expect(Math.hypot(fast.vx, fast.vy)).toBeGreaterThan(Math.hypot(slow.vx, slow.vy))
-    expect(fast.power).toBeGreaterThan(slow.power)
-  })
-
-  it('respeita o piso em toque hesitante perto do ápice', () => {
-    const result = computeKick(ball({ vy: -100 }), { x: 270 + 24, y: 500 })
-    expect(Math.hypot(result.vx, result.vy)).toBeCloseTo(TUNING.kick.minSpeed, 5)
-  })
-
-  it('não passa do teto da faixa', () => {
-    const result = computeKick(ball({ vy: 5000 }), { x: 270 + 24, y: 500 })
-    expect(Math.hypot(result.vx, result.vy)).toBeCloseTo(TUNING.kick.maxSpeed, 5)
-  })
-
-  it('perfect usa o topo da faixa', () => {
-    const result = computeKick(ball({ vy: 200 }), { x: 270 + 4, y: 500 })
-    expect(result.perfect).toBe(true)
-    expect(Math.hypot(result.vx, result.vy)).toBeCloseTo(TUNING.perfect.speed, 5)
-  })
-
   it('preserva o orçamento de velocidade ao inclinar', () => {
-    const result = computeKick(ball({ vy: 900 }), { x: 270 + 25, y: 500 })
-    const expected = TUNING.kick.baseSpeed + TUNING.kick.impactFactor * 900
+    const result = computeKick(ball({ vy: 900 }), { x: 270 + 25, y: 500 }, {
+      fallDistance: TUNING.kick.fullPowerDrop / 2,
+    })
+    const impact = Math.pow(0.5, TUNING.kick.powerCurve)
+    const expected =
+      TUNING.kick.minSpeed + (TUNING.kick.maxSpeed - TUNING.kick.minSpeed) * impact
     expect(Math.hypot(result.vx, result.vy)).toBeCloseTo(expected, 5)
   })
 
-  it('arco normal fica na faixa de 1.5–2.5 s', () => {
-    const center = computeKick(ball({ vy: 900 }), { x: 270, y: 500 })
-    const edge = computeKick(ball({ vy: 900 }), { x: 270 + 24, y: 500 })
-    for (const kick of [center, edge]) {
-      expect(kick.arcTime).toBeGreaterThanOrEqual(1.5)
-      expect(kick.arcTime).toBeLessThanOrEqual(2.5)
-    }
+  it('arco do ápice é curto; arco da queda cheia fica na faixa alta', () => {
+    const apex = falling(0)
+    const full = falling(TUNING.kick.fullPowerDrop, 24)
+    expect(apex.arcTime).toBeGreaterThanOrEqual(0.75)
+    expect(apex.arcTime).toBeLessThanOrEqual(0.95)
+    expect(full.arcTime).toBeGreaterThanOrEqual(2.3)
+    expect(full.arcTime).toBeLessThanOrEqual(2.5)
   })
 })

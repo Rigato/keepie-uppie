@@ -1,6 +1,6 @@
 # Playtest — Keepie-Uppie MVP01
 
-**Build:** `0.1.6-mvp1` · F7 · https://rigato.github.io/keepie-uppie/
+**Build:** `0.1.7-mvp1` · F7 · https://rigato.github.io/keepie-uppie/
 **Objetivo:** responder as 6 perguntas do plano de design. O playtest decide o que vem depois; o documento não.
 
 ## Antes de começar
@@ -8,7 +8,7 @@
 - **10–15 minutos**, som ligado, celular na mão (é o alvo principal). Se possível, repita no desktop.
 - **Três runs livres** antes de analisar: a primeira é para aprender, não para julgar.
 - **Toque perto da bola** (o alvo é generoso, ~2,5× o raio visual: 75 u de toque; o ângulo usa 60 u). O anel de pontos **não aparece** na build normal; `?ring=1` mostra a área de chute para tuning.
-- **A bola cai mais devagar de propósito.** Espere a queda e toque nela no meio/baixo da tela também: não é obrigatório tocar no ápice.
+- **A força vem da queda.** Toque no ápice = embaixadinha curta; deixe a bola cair até o meio/baixo da tela e o chute sobe mais. O risco de esperar é pago pela altura.
 - Não há tutorial de texto: a run é o tutorial. "TAP THE BALL" é a única instrução.
 - `?resetSave=1` zera melhor score e moedas.
 - `?debug=1` mostra chute (arco/força), posição da bola, streak, powerup e um botão de reset do save. Use só se precisar de número; o painel cobre parte da tela.
@@ -18,7 +18,7 @@
 ## Roteiro rápido
 
 1. **Aquecimento (2 runs):** jogue sem pensar em nada. Só sinta o chute e a queda.
-2. **Ângulo e força:** toque no centro, na esquerda e na direita da bola. Tente chutar fraco e forte (deixando a bola cair mais).
+2. **Ângulo e força:** toque no centro, na esquerda e na direita da bola. Compare um toque no ápice (curto) com um toque depois de deixar a bola cair até o fundo (alto).
 3. **Whiff:** erre o toque de propósito; note o custo (tempo, pânico, streak).
 4. **Obstáculos:** identifique cada um pela silhueta/som. Tente morrer batendo em um: não deve ser possível.
 5. **Rota:** busque uma trilha de moedas, atravesse uma argola, pise numa mola. Vale o desvio?
@@ -31,7 +31,7 @@ Dê uma nota de **1 a 5** e escreva uma frase. "1" = falhou, "5" = promessa cump
 
 ### 1. O kick é gostoso?
 
-*O que observar:* ângulo e força legíveis no primeiro minuto; o chute parece resposta ao dedo ou sorte? O whiff parece custo justo, não bug? O arco dá tempo de ler a queda?
+*O que observar:* ângulo e força legíveis no primeiro minuto; o chute parece resposta ao dedo ou sorte? A diferença entre o toque no ápice (curto) e o toque no fundo (alto) é clara e recompensadora? O whiff parece custo justo, não bug? O arco dá tempo de ler a queda?
 
 Nota: ___ / 5
 Comentário:

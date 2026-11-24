@@ -51,7 +51,7 @@ O workflow também pode ser disparado manualmente (`workflow_dispatch`). Se o ce
 
 ## Estado do projeto
 
-**MVP01 completo (F7):** core loop, obstáculos, interativos, Magnet, Aimed Shot, perfect/streak/febre, pausa/mute, save local e pacote validado para portais. Jogável em https://rigato.github.io/keepie-uppie/. O alvo de toque é generoso (raio 60) desde a `0.1.2`; o anel de pontos é ferramenta de tuning (`?ring=1`) e fica oculto na build normal. A `0.1.3` reduziu os elementos em 20%, estreitou o hard e deu folga à câmera (a bola sobe até ~14% do topo). O próximo passo é o **playtest** — ver `docs/playtest-mvp01.md` — e só depois a publicação nos portais.
+**MVP01 completo (F7):** core loop, obstáculos, interativos, Magnet, Aimed Shot, perfect/streak/febre, pausa/mute, save local e pacote validado para portais. Jogável em https://rigato.github.io/keepie-uppie/. O alvo de toque é generoso (75 u; o ângulo usa 60) desde a `0.1.4`; o anel de pontos é ferramenta de tuning (`?ring=1`) e fica oculto na build normal. A `0.1.4` ajustou a queda e a câmera (bola até ~26% do topo); a `0.1.5`/`0.1.6` clarearam o visual e puseram o Aimed Shot em estilingue; a `0.1.7` fez a força do chute pagar a queda (ápice curto, fundo alto). O próximo passo é o **playtest** — ver `docs/playtest-mvp01.md` — e só depois a publicação nos portais.
 
 ## Documentação
 
