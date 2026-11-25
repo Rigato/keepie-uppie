@@ -46,7 +46,8 @@ No ritmo do topo (~0,77 s por toque), a recarga entre toques devolve ~18,5 por c
 ## Validação
 
 - Typecheck limpo; **195/195 testes** (16 arquivos; 15 novos: 9 de estamina, 2 de `kickBoostFor` e 4 de `computeKick`); build ok; `git diff --check` limpo.
-- Smoke E2E **12/12** (390×844 @2×), zero `pageerror`/`console.error`. O passo novo **"Estamina: 4 toques esgotam, bloqueia e recupera"** faz quatro cliques reais na bola, confere barra em 0, `EXHAUSTED`, streak 4 com `NICE · +2.0%` e o cinza em alpha 0,36; o 5º clique não muda streak nem `vy`; após `recoverMs + 400 ms` a barra está cheia, o cinza sumiu e o rótulo voltou a `STAMINA`.
+- Smoke E2E **12/12** (390×844 @2×) local e **live**, zero `pageerror`/`console.error`. O passo novo **"Estamina: 4 toques esgotam, bloqueia e recupera"** faz quatro cliques reais na bola, confere barra em 0, `EXHAUSTED`, streak 4 com `NICE · +2.0%` e o cinza em alpha 0,36; o 5º clique não muda streak nem `vy`; após `recoverMs + 400 ms` a barra está cheia, o cinza sumiu e o rótulo voltou a `STAMINA`.
+- CI de Pages verde (typecheck, testes, build e smoke) e deploy concluído; o JS live confirma `0.6.0-mvp1`, `EXHAUSTED` e `kickBoostMax`.
 - Prova visual em 390×844 @2×:
   - `/tmp/opencode/keepie-stamina-full.png` — barra cheia.
   - `/tmp/opencode/keepie-stamina-low.png` — 15%, vermelha.
