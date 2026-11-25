@@ -58,7 +58,10 @@ subiram **2,5×**, mantendo a ordem de valor relativo:
 
 - Typecheck limpo; **195/195 testes** (16 arquivos); build ok; `git diff --check`
   limpo.
-- Smoke E2E **12/12** (390×844 @2×), zero `pageerror`/`console.error`.
+- Smoke E2E **12/12** (390×844 @2×) local e **live**, zero
+  `pageerror`/`console.error`.
+- CI de Pages verde (typecheck, testes, build e smoke) e deploy concluído; o JS
+  live confirma `0.7.0-mvp1`, o preço `125` e o soft novo.
 - Capturas da loja: `/tmp/opencode/keepie-shop-prices.png` (125/75/100/60).
 
 ## Ajuste fino
@@ -70,3 +73,6 @@ subiram **2,5×**, mantendo a ordem de valor relativo:
   "atravessa e desacelera" no celular, as alternativas já desenhadas são a rede
   frouxa (hammock) e uma nuvem densa; a hitbox e o dreno continuam iguais em
   qualquer uma.
+- O pacote foi gerado no commit de código `0f3b592`; o Pages publica o commit
+  de docs mais recente, então o label do site mostra esse SHA. O código é o
+  mesmo.
