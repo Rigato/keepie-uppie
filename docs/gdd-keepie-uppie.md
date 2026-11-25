@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Versão** | 1.2 — consolidado em 18/11/2026 · atualizado em 25/11/2026 (Ciclo 0.6) |
+| **Versão** | 1.3 — consolidado em 18/11/2026 · atualizado em 25/11/2026 (Ciclo 0.7) |
 | **Fontes** | `ideia-semente.md` (rounds 1–6) · `referencias-comparativas.md` · `propostas-gameplay.md` (curadas) |
-| **Status** | GDD do MVP1 com os ciclos 0.3–0.6. Seções não validadas na conversa estão marcadas `[A Definir]` — sem invenção. |
+| **Status** | GDD do MVP1 com os ciclos 0.3–0.7. Seções não validadas na conversa estão marcadas `[A Definir]` — sem invenção. |
 | **Regra central** | Todo número citado como "valor de TESTE" é ponto de partida de calibração, não decisão. |
 
 ---
@@ -66,7 +66,7 @@ Altitude em **metros** (contador de altura) + moedas coletadas. Best pessoal **l
 | Tipo | Efeito | Feedback exigido |
 |---|---|---|
 | **Birds / Flock** | atravessam horizontalmente; tocam a bola = desvio leve; bando ocasional = set-piece de ~3–4s | visual de "passa e desvia", nunca de dano |
-| **Soft surface** | a bola afunda e **perde força** (drena velocidade, não desvia) | deforma no contato (varal/toldo) |
+| **Soft surface** | a bola afunda e **perde força** (drena velocidade, não desvia) | folhagem: folhas pontudas sobrepostas, silhueta orgânica e deformação no contato (0.7.0) |
 | **Breakable** | bola veloz **estilhaça** e passa; bola lenta é desviada | estilhaço catártico (assinatura de feedback — lição Smash Hit) |
 | **Bumper** | almofada circular que reflete a bola na direção radial; tocar no topo devolve para cima, tocar na lateral desvia | anel radial + squash, som grave curto; nunca estilhaça nem drena |
 | **Ramp** | barra diagonal (~35°) que reflete a bola para o lado, como uma barra rígida girada | flash de impacto rígido + risco claro ao longo da rampa; som pelo lado do impacto |
@@ -139,12 +139,12 @@ Modelo: **3 slots, sem duplicatas, com devolução ao pool**. Comprar adiciona a
 
 | Consumível (EN/PT) | Efeito | Preço `[TESTE]` |
 |---|---|---:|
-| **Safety Net** / Rede de Proteção | Passiva. Na morte, depois de a run ter começado, a bola reaparece 180 u acima da linha de morte com 1500 u/s para cima. Uma carga; a run continua e conta como normal. | 50 |
-| **Magnet** / Ímã | Ativável. Toque no ícone = Magnet por **45 s** (0.5.0; o pickup do mundo continua 15 s), com o mesmo raio/puxão do pickup. | 30 |
-| **Power Kick** / Chutão | Ativável. Toque no ícone arma; o próximo chute válido sai a **2750 u/s**, mantendo o ângulo do ponto de toque; o Perfect soma +60 (2810, abaixo da mola em 2850). Whiff não dispara. | 40 |
-| **Streak Saver** / Salva-Streak | Ativável. Toque no ícone arma; o próximo whiff não quebra o streak. Não protege contra morte nem contra obstáculo. | 25 |
+| **Safety Net** / Rede de Proteção | Passiva. Na morte, depois de a run ter começado, a bola reaparece 180 u acima da linha de morte com 1500 u/s para cima. Uma carga; a run continua e conta como normal. | 125 |
+| **Magnet** / Ímã | Ativável. Toque no ícone = Magnet por **45 s** (0.5.0; o pickup do mundo continua 15 s), com o mesmo raio/puxão do pickup. | 75 |
+| **Power Kick** / Chutão | Ativável. Toque no ícone arma; o próximo chute válido sai a **2750 u/s**, mantendo o ângulo do ponto de toque; o Perfect soma +60 (2810, abaixo da mola em 2850). Whiff não dispara. | 100 |
+| **Streak Saver** / Salva-Streak | Ativável. Toque no ícone arma; o próximo whiff não quebra o streak. Não protege contra morte nem contra obstáculo. | 60 |
 
-**Decidido pelo usuário (25/11/2026):** a barra fica no canto inferior esquerdo e funciona no celular; a carga é gasta **na ativação** (não quando o efeito dispara); o Chutão é ativado e depois chutado. `[CONFIRMAR]` preços 50/30/40/25, a regra de **uma carga por tipo por run** e a força da rede (1500 u/s / 180 u). A Safety Net foi decidida nos rounds 3–4; Magnet, Power Kick e Streak Saver entraram no Ciclo 0.4. O detalhamento de design e as alternativas estão em `docs/proposta-conteudo-0.3.md`.
+**Decidido pelo usuário (25/11/2026):** a barra fica no canto inferior esquerdo e funciona no celular; a carga é gasta **na ativação** (não quando o efeito dispara); o Chutão é ativado e depois chutado. `[CONFIRMAR]` preços 125/75/100/60 (2,5× a tabela anterior, pedido do usuário em 25/11/2026), a regra de **uma carga por tipo por run** e a força da rede (1500 u/s / 180 u). A Safety Net foi decidida nos rounds 3–4; Magnet, Power Kick e Streak Saver entraram no Ciclo 0.4. O detalhamento de design e as alternativas estão em `docs/proposta-conteudo-0.3.md`.
 
 ### 3.12 Estamina do jogador (0.6.0)
 **Problema:** tocar a bola assim que ela começa a cair, no topo da tela, dá um chute mínimo (500 u/s) que volta em ~0,77 s. Cada toque conta streak, então o jogador consegue encadear ~1,3 toques/s no topo, subindo o combo sem ganhar altitude. É um farm de streak/moedas, não uma rota.
@@ -173,7 +173,7 @@ Modelo: **3 slots, sem duplicatas, com devolução ao pool**. Comprar adiciona a
 
 **Dentro da run:** altitude (placar), streak (multiplicador), moedas (coleta), rotas ousadas vs. seguras.
 
-**Economia (0.4.0):** a **loja de consumíveis** é o sink. Preços `[TESTE]` 50 (Safety Net), 30 (Magnet), 40 (Power Kick) e 25 (Streak Saver). A moeda compra segurança, ritmo ou proteção para uma run — nunca poder permanente. O MVP1 nasceu sem sink para validar a coleta e o Magnet; a 0.3.0 adicionou a saída e a 0.4.0 tornou três dos quatro itens ativáveis na barra da run.
+**Economia (0.7.0):** a **loja de consumíveis** é o sink. Preços `[TESTE]` 125 (Safety Net), 75 (Magnet), 100 (Power Kick) e 60 (Streak Saver) — 2,5× a tabela da 0.4.0, porque a coleta estava fácil demais. A moeda compra segurança, ritmo ou proteção para uma run — nunca poder permanente. O MVP1 nasceu sem sink para validar a coleta e o Magnet; a 0.3.0 adicionou a saída e a 0.4.0 tornou três dos quatro itens ativáveis na barra da run.
 
 **Pós-MVP (já decidido em rounds 3–4):** save por AD 1x/run opt-in na tela de morte; placar online só se o jogo merecer. A loja, o loadout de 3 slots e a rede de proteção saíram do pós-MVP e entraram na 0.3.0.
 
@@ -255,5 +255,12 @@ Save-AD · Time-Warp · biomas · multiball (se provar valor) · online (se mere
 | Estamina | barra no topo direito; 100 de capacidade, 30 por chute válido, recarga 24/s, exaustão de 1,2 s com tela cinza e `EXHAUSTED`; impede o farm de toques curtos no topo. |
 | Streak | +0,5% de força por chute limpo até +5% no ON FIRE; bônus de moedas/febre inalterado; Chutão e Aimed mantêm a força própria. |
 | Docs | `docs/release/fix16-estamina-e-forca-do-streak.md` |
+
+### Ciclo 0.7 — soft de folhagem e economia (implementado)
+| Bloco | Conteúdo |
+|---|---|
+| Soft | o toldo retangular vira **folhagem**: folhas pontudas sobrepostas, sem aresta reta, em duas camadas de verde; a bola atravessa e perde força. Hitbox e dreno não mudaram. |
+| Economia | preços da loja **2,5×**: Safety Net 125, Magnet 75, Power Kick 100 e Streak Saver 60. |
+| Docs | `docs/release/fix17-soft-folhagem-e-economia.md` |
 
 **Gate de validação:** o playtest do MVP1 decide tudo que vem depois — diversão se valida no jogável, não no documento.
