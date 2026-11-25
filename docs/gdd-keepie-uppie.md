@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Versão** | 1.1 — consolidado em 18/11/2026 · atualizado em 25/11/2026 (Ciclo 0.5) |
+| **Versão** | 1.2 — consolidado em 18/11/2026 · atualizado em 25/11/2026 (Ciclo 0.6) |
 | **Fontes** | `ideia-semente.md` (rounds 1–6) · `referencias-comparativas.md` · `propostas-gameplay.md` (curadas) |
-| **Status** | GDD do MVP1 com os ciclos 0.3–0.5. Seções não validadas na conversa estão marcadas `[A Definir]` — sem invenção. |
+| **Status** | GDD do MVP1 com os ciclos 0.3–0.6. Seções não validadas na conversa estão marcadas `[A Definir]` — sem invenção. |
 | **Regra central** | Todo número citado como "valor de TESTE" é ponto de partida de calibração, não decisão. |
 
 ---
@@ -111,9 +111,10 @@ Set piece a cada **400–600 m**, nunca antes de 100 m (primeiro em 200 m): mold
 ### 3.8 Camadas de skill do MVP1
 - **Perfect Touch:** ver 3.3.
 - **Streak (combo de toques limpos):** chutes limpos consecutivos sobem multiplicador com **rótulos escalonados em EN** (padrão GOOD → SWEET → EXTREME do Icy Tower, nomes finais `[A Definir — tuning]`). No topo: **febre** — moedas valem dobrado por um tempo (padrão fever do Tiny Wings). Quebra em **whiff** (proposta base); se colisão com obstáculo também quebra = `[variante de tuning a testar]`.
+- **Força do streak (0.6.0):** além do bônus de moedas/febre, cada chute limpo soma **+0,5% de velocidade de chute**, com teto de **+5%** (alcançado no ON FIRE, 10 chutes) `[TESTE]`. O bônus entra na curva normal, depois da queda e antes do +60 do Perfect; não se aplica ao Chutão nem ao Aimed Shot, que mantêm a calibração própria. É sutil de propósito: no NICE são +1,5%, no GREAT +3% e no ON FIRE +5% — o jogador sente o chute render um pouco mais, sem virar outro jogo. O multiplicador usa o streak **antes** do chute atual.
 
 ### 3.9 Feedback e legibilidade (pilar 4)
-Nenhuma interação silenciosa: chute (som + squash proporcionais à força — fraco é leve, forte é pesado), desvio (traço + som), drenagem (deformação), estilhaço (partículas), powerup (anúncio + ícone de estado ativo), febre (mudança perceptível do estado). A bola rola com o movimento e recebe o giro do chute — só o padrão gira; brilho e sombra ficam fixos (0.4.1). O degrau de ritmo também se anuncia (`FASTER FALLS`), para a dificuldade não parecer bug. Consumíveis têm anúncio e efeito próprios (`SAVED!`, `CHUTÃO!`, `STREAK SAFE`, chips de Magnet/Shield/Sweet). O Goal anuncia `GOAL!` com flash e burst, e o objetivo é lido antes de o jogador chegar. Tempo de leitura em toda ativação.
+Nenhuma interação silenciosa: chute (som + squash proporcionais à força — fraco é leve, forte é pesado), desvio (traço + som), drenagem (deformação), estilhaço (partículas), powerup (anúncio + ícone de estado ativo), febre (mudança perceptível do estado). A bola rola com o movimento e recebe o giro do chute — só o padrão gira; brilho e sombra ficam fixos (0.4.1). O degrau de ritmo também se anuncia (`FASTER FALLS`), para a dificuldade não parecer bug. Consumíveis têm anúncio e efeito próprios (`SAVED!`, `CHUTÃO!`, `STREAK SAFE`, chips de Magnet/Shield/Sweet). O Goal anuncia `GOAL!` com flash e burst, e o objetivo é lido antes de o jogador chegar. Tempo de leitura em toda ativação. A estamina (0.6.0) avisa antes de punir: barra que drena, `EXHAUSTED` e tela cinza durante o bloqueio; nunca um toque que “não funciona” sem explicação.
 
 ### 3.10 Casos de borda
 - Whiff com Aimed Shot armado → powerup **permanece armado**.
@@ -144,6 +145,25 @@ Modelo: **3 slots, sem duplicatas, com devolução ao pool**. Comprar adiciona a
 | **Streak Saver** / Salva-Streak | Ativável. Toque no ícone arma; o próximo whiff não quebra o streak. Não protege contra morte nem contra obstáculo. | 25 |
 
 **Decidido pelo usuário (25/11/2026):** a barra fica no canto inferior esquerdo e funciona no celular; a carga é gasta **na ativação** (não quando o efeito dispara); o Chutão é ativado e depois chutado. `[CONFIRMAR]` preços 50/30/40/25, a regra de **uma carga por tipo por run** e a força da rede (1500 u/s / 180 u). A Safety Net foi decidida nos rounds 3–4; Magnet, Power Kick e Streak Saver entraram no Ciclo 0.4. O detalhamento de design e as alternativas estão em `docs/proposta-conteudo-0.3.md`.
+
+### 3.12 Estamina do jogador (0.6.0)
+**Problema:** tocar a bola assim que ela começa a cair, no topo da tela, dá um chute mínimo (500 u/s) que volta em ~0,77 s. Cada toque conta streak, então o jogador consegue encadear ~1,3 toques/s no topo, subindo o combo sem ganhar altitude. É um farm de streak/moedas, não uma rota.
+
+**Solução:** uma estamina que taxa o ritmo curto de toques, sem punir quem deixa a bola cair para buscar força.
+
+| Regra | Valor `[TESTE]` |
+|---|---|
+| Capacidade | 100 |
+| Custo por **chute válido** | 30 (4 chutes cheios esgotam) |
+| Recarga fora da exaustão | 24/s (1 chute a cada ~1,25 s é sustentável) |
+| Exaustão ao chegar a 0 | bloqueia chutes por 1,2 s; a barra recarrega rápido de 0 a 100 nesse intervalo |
+| Whiff, toque antes do ápice e toque bloqueado | não gastam estamina (o Chutão armado permanece) |
+| Aimed Shot | não gasta estamina (é powerup, não toque normal) |
+
+- O chute que zera a barra **acontece**; a exaustão começa depois dele. Ao fim da recarga, o jogador tem a barra cheia para recuperar a bola que estiver caindo.
+- **Feedback:** barra fixa no canto superior direito, abaixo do botão de pausa, com rótulo `STAMINA`; fica discreta quando cheia, acende ao drenar e fica **vermelha com `EXHAUSTED`** quando esgota. A tela inteira ganha uma camada cinza (mundo dessaturado, HUD legível) durante a exaustão. Toques bloqueados não quebram o streak.
+- A estamina **não** altera física, hitbox, câmera ou a curva de força; ela só decide se um chute normal pode acontecer.
+- `[CONFIRMAR]` os quatro números (capacidade, custo, recarga, bloqueio) e a leitura visual; o teste no celular decide se a barra pesa demais no início.
 
 ---
 
@@ -228,5 +248,12 @@ Save-AD · Time-Warp · biomas · multiball (se provar valor) · online (se mere
 | Moedas | padrões trilha/horizontal/quadrado/losango/estrela/zigue-zague; **moeda especial de 5** acima de 400 m, 1 por conjunto, visual próprio. |
 | Ímã | consumível da barra passa a **45 s**; pickup do mundo continua 15 s. |
 | Docs | `docs/release/fix15-spawn-moedas-e-ima.md` |
+
+### Ciclo 0.6 — estamina e força do streak (implementado)
+| Bloco | Conteúdo |
+|---|---|
+| Estamina | barra no topo direito; 100 de capacidade, 30 por chute válido, recarga 24/s, exaustão de 1,2 s com tela cinza e `EXHAUSTED`; impede o farm de toques curtos no topo. |
+| Streak | +0,5% de força por chute limpo até +5% no ON FIRE; bônus de moedas/febre inalterado; Chutão e Aimed mantêm a força própria. |
+| Docs | `docs/release/fix16-estamina-e-forca-do-streak.md` |
 
 **Gate de validação:** o playtest do MVP1 decide tudo que vem depois — diversão se valida no jogável, não no documento.
