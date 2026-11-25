@@ -59,3 +59,4 @@ A lógica pura vive em `src/core/ball-spin.ts`, com 21 testes em `tests/ball-spi
 - Os dois primeiros frames após um chute mostram a bola levemente oval: é o squash/stretch pré-existente do chute, agora com o padrão girando dentro.
 - O residual lateral é assimétrico por construção (backspin central + componente do lado tocado); as taxas ficam no alvo de ~1–2 voltas/s e convergem para a rolagem pura conforme o residual decai.
 - A rotação é só visual: não altera a física nem a jogabilidade.
+- O pacote foi gerado no commit de código `440cc34`; o Pages publica o commit de docs mais recente, então o label do site mostra esse SHA. O código é o mesmo.
