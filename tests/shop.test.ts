@@ -23,12 +23,12 @@ function saveWith(overrides: Partial<SaveV1> = {}): SaveV1 {
 
 describe('loja: compra', () => {
   it('desconta o preço e adiciona uma unidade ao inventário', () => {
-    const save = saveWith({ totalCoins: 100 })
+    const save = saveWith({ totalCoins: 200 })
     const next = buy(save, 'net')
-    expect(next.totalCoins).toBe(100 - CONSUMABLES.net.price)
+    expect(next.totalCoins).toBe(200 - CONSUMABLES.net.price)
     expect(ownedCount(next, 'net')).toBe(1)
     // Imutável: o save de entrada não muda.
-    expect(save.totalCoins).toBe(100)
+    expect(save.totalCoins).toBe(200)
     expect(ownedCount(save, 'net')).toBe(0)
   })
 

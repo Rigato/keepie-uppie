@@ -28,7 +28,7 @@ export const CONSUMABLES: Record<ConsumableId, ConsumableDef> = {
     id: 'net',
     name: 'SAFETY NET',
     description: 'Saves the ball once when it crosses the death line.',
-    price: 50,
+    price: 125,
     passive: true,
   },
   magnet: {
@@ -36,21 +36,21 @@ export const CONSUMABLES: Record<ConsumableId, ConsumableDef> = {
     name: 'MAGNET',
     /** 45 s = `TUNING.consumable.magnetDurationMs` (o pickup do mundo é 15 s). */
     description: 'Tap its icon in-game to attract coins for 45s.',
-    price: 30,
+    price: 75,
     passive: false,
   },
   chutao: {
     id: 'chutao',
     name: 'POWER KICK',
     description: 'Tap its icon in-game; your next kick becomes a full-power Chutão.',
-    price: 40,
+    price: 100,
     passive: false,
   },
   streak: {
     id: 'streak',
     name: 'STREAK SAVER',
     description: 'Tap its icon in-game to protect your streak from one whiff.',
-    price: 25,
+    price: 60,
     passive: false,
   },
 }
