@@ -2,6 +2,19 @@ import { TUNING } from '../game/tuning'
 
 export type StreakLabel = 'NICE' | 'GREAT' | 'ON FIRE'
 
+/**
+ * Multiplicador aditivo de velocidade do chute (0 = sem bônus).
+ *
+ * O bônus é calculado com o streak ANTES do chute atual, para o próprio chute
+ * não se autoalimentar: em 3 (NICE) dá 1,5%, em 6 (GREAT) 3% e em 10 (ON FIRE)
+ * 5%, o teto. Os bônus de moedas/febre não mudam.
+ */
+export function kickBoostFor(count: number): number {
+  if (!Number.isFinite(count) || count <= 0) return 0
+  const s = TUNING.streak
+  return Math.min(count * s.kickBoostPerKick, s.kickBoostMax)
+}
+
 export interface StreakKick {
   /** Chutes limpos consecutivos depois deste. */
   count: number

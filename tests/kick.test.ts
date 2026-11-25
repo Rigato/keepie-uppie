@@ -303,3 +303,77 @@ describe('computeKick', () => {
     expect(TUNING.kick.deepFullDrop).toBeLessThanOrEqual(fallRoom)
   })
 })
+
+describe('speedMultiplier (bônus de streak)', () => {
+  const fallingBall = ball({ vy: TUNING.physics.maxFallSpeed })
+  const edgePoint = { x: 270 + 30, y: 500 } // fora da janela do Perfect
+  const centerPoint = { x: 270, y: 500 }
+
+  it('multiplica só a curva normal, preserva a direção e aumenta o power', () => {
+    const normal = computeKick(fallingBall, edgePoint, {
+      fallDistance: TUNING.kick.fullPowerDrop,
+    })
+    const boosted = computeKick(fallingBall, edgePoint, {
+      fallDistance: TUNING.kick.fullPowerDrop,
+      speedMultiplier: 1.05,
+    })
+
+    const normalSpeed = Math.hypot(normal.vx, normal.vy)
+    const boostedSpeed = Math.hypot(boosted.vx, boosted.vy)
+    expect(boostedSpeed / normalSpeed).toBeCloseTo(1.05, 5)
+    expect(boosted.vy / normal.vy).toBeCloseTo(1.05, 5)
+    expect(boosted.vx / normal.vx).toBeCloseTo(1.05, 5)
+    expect(boosted.power).toBeGreaterThan(normal.power)
+    expect(boosted.offset).toBeCloseTo(normal.offset, 5)
+  })
+
+  it('o overrideSpeed do Chutão ignora o multiplicador', () => {
+    const opts = {
+      fallDistance: 0,
+      overrideSpeed: TUNING.consumable.chutaoSpeed,
+    }
+    const normal = computeKick(fallingBall, centerPoint, opts)
+    const boosted = computeKick(fallingBall, centerPoint, {
+      ...opts,
+      speedMultiplier: 1.05,
+    })
+
+    const expected = TUNING.consumable.chutaoSpeed + TUNING.perfect.speedBonus
+    expect(Math.hypot(normal.vx, normal.vy)).toBeCloseTo(expected, 5)
+    expect(Math.hypot(boosted.vx, boosted.vy)).toBeCloseTo(expected, 5)
+    expect(boosted.vy).toBeCloseTo(normal.vy, 5)
+  })
+
+  it('o bônus de Perfect é somado depois, sem ser multiplicado', () => {
+    const normal = computeKick(fallingBall, centerPoint, { fallDistance: 0 })
+    const boosted = computeKick(fallingBall, centerPoint, {
+      fallDistance: 0,
+      speedMultiplier: 1.05,
+    })
+    expect(normal.perfect).toBe(true)
+    expect(boosted.perfect).toBe(true)
+
+    const normalSpeed = Math.hypot(normal.vx, normal.vy)
+    const boostedSpeed = Math.hypot(boosted.vx, boosted.vy)
+    // 500 * 1.05 + 60 = 585; a diferença é 5% da curva, não do total.
+    expect(boostedSpeed).toBeCloseTo(normalSpeed + 25, 5)
+    expect(boostedSpeed - normalSpeed).toBeCloseTo(
+      0.05 * (normalSpeed - TUNING.perfect.speedBonus),
+      5,
+    )
+  })
+
+  it('multiplicador inválido ou negativo cai em 1', () => {
+    const expected = computeKick(fallingBall, edgePoint, { fallDistance: 400 })
+    for (const speedMultiplier of [Number.NaN, -1, Number.POSITIVE_INFINITY]) {
+      const got = computeKick(fallingBall, edgePoint, {
+        fallDistance: 400,
+        speedMultiplier,
+      })
+      expect(Math.hypot(got.vx, got.vy)).toBeCloseTo(
+        Math.hypot(expected.vx, expected.vy),
+        5,
+      )
+    }
+  })
+})

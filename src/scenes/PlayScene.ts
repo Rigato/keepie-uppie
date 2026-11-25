@@ -14,7 +14,8 @@ import { InteractiveSpawner, interactiveRect } from '../core/interactive-spawner
 import { computeKick, isInsideBall, type KickResult } from '../core/kick'
 import { rectFromBounds, type SpawnRect } from '../core/spawn-layout'
 import { ObstacleSpawner, obstacleRect } from '../core/spawner'
-import { StreakTracker, labelForCount, type StreakLabel } from '../core/streak'
+import { StaminaMeter } from '../core/stamina'
+import { kickBoostFor, StreakTracker, labelForCount, type StreakLabel } from '../core/streak'
 import { consume, equippedIds } from '../core/shop'
 import {
   ACTIVATABLE_IDS,
@@ -46,6 +47,7 @@ import { AimUi } from '../ui/aim'
 import { Hud } from '../ui/hud'
 import { Parallax } from '../ui/parallax'
 import { PowerupHud } from '../ui/powerup-hud'
+import { StaminaBar } from '../ui/stamina-bar'
 import { drawBackdrop } from '../ui/backdrop'
 
 type BallState = BallLike
@@ -97,6 +99,14 @@ export class PlayScene extends Phaser.Scene {
   private aimEndsAt = 0
   private aimPointer = { x: 0, y: 0 }
   private streak = new StreakTracker()
+  /** Estamina: cada chute normal válido custa uma fatia; a exaustão bloqueia toques. */
+  private stamina = new StaminaMeter()
+  private staminaBar!: StaminaBar
+  /** Camada cinza da exaustão: cobre o mundo (depth ≤ 11), não o HUD (100). */
+  private exhaustOverlay!: Phaser.GameObjects.Rectangle
+  /** Transição da exaustão: evita empilhar tween, som e aviso por toque bloqueado. */
+  private exhaustionOverlayActive = false
+  private exhaustionAnnounced = false
   private feverUntil = 0
   private feverAura!: Phaser.GameObjects.Arc
   private streakText!: Phaser.GameObjects.Text
@@ -170,6 +180,9 @@ export class PlayScene extends Phaser.Scene {
     this.aiming = false
     this.aimEndsAt = 0
     this.streak.reset()
+    this.stamina.reset()
+    this.exhaustionOverlayActive = false
+    this.exhaustionAnnounced = false
     this.feverUntil = 0
     this.feverHudAt = 0
     this.hitStopUntil = 0
@@ -246,6 +259,22 @@ export class PlayScene extends Phaser.Scene {
     this.hud = new Hud(this, save.bestMeters)
     this.hud.setMeters(0)
     this.hud.setCoins(0)
+
+    // Estamina no topo direito; o cinza fica acima do mundo e abaixo do HUD.
+    this.staminaBar = new StaminaBar(this)
+    this.exhaustOverlay = this.add
+      .rectangle(
+        TUNING.world.width / 2,
+        TUNING.world.height / 2,
+        TUNING.world.width,
+        TUNING.world.height,
+        PALETTE.exhaust,
+        1,
+      )
+      .setAlpha(0)
+      .setScrollFactor(0)
+      .setDepth(90)
+      .setVisible(false)
 
     this.powerupHud = new PowerupHud(this)
     this.aimUi = new AimUi(this)
@@ -390,6 +419,11 @@ export class PlayScene extends Phaser.Scene {
 
     const slow = (this.registry.get('timeScale') as number | undefined) ?? 1
     const dt = (Math.min(deltaMs, 50) / 1000) * slow
+
+    // A barra recarrega também durante Aimed/hitstop: a exaustão é curta e o
+    // jogador precisa ver a recarga ao mirar, sem depender da física da bola.
+    this.stamina.update(dt)
+    this.updateStaminaUi()
 
     if (this.aiming) {
       this.updateAim()
@@ -889,6 +923,8 @@ export class PlayScene extends Phaser.Scene {
   private fireAim(timedOut: boolean): void {
     if (!this.aiming) return
 
+    // Aimed Shot é powerup: permitido na exaustão e sem gasto de estamina —
+    // não chama applyKick, então não passa pelo custo nem pelo bloqueio.
     const shot = resolveAim(this.ball, this.aimPointer, timedOut)
     this.aiming = false
     this.aimUi.hide()
@@ -1104,6 +1140,9 @@ export class PlayScene extends Phaser.Scene {
     const result = computeKick(this.ball, { x, y }, {
       fallDistance: this.fallDistance(),
       overrideSpeed: chutao ? TUNING.consumable.chutaoSpeed : undefined,
+      // Streak ANTES do chute atual; o Chutão ignora o multiplicador e o
+      // AimedShot não passa por aqui (usa a própria curva de mira).
+      speedMultiplier: 1 + kickBoostFor(this.streak.count),
       perfectWindow: sweet
         ? TUNING.kick.perfectWindow * TUNING.powerup.sweetWindowScale
         : undefined,
@@ -1148,6 +1187,9 @@ export class PlayScene extends Phaser.Scene {
     DEBUG_STATE.meters = this.meters
     DEBUG_STATE.coins = this.coins
     DEBUG_STATE.streak = this.streak.count
+    DEBUG_STATE.stamina = this.stamina.ratio * 100
+    DEBUG_STATE.staminaExhausted = this.stamina.exhausted
+    DEBUG_STATE.kickBoost = kickBoostFor(this.streak.count) * 100
     DEBUG_STATE.fallSpeedLimit = this.fallSpeedLimit
     DEBUG_STATE.difficultyStage = this.difficultyStage
     DEBUG_STATE.powerup = this.aiming
@@ -1169,6 +1211,12 @@ export class PlayScene extends Phaser.Scene {
       if (this.retryReady) this.retry()
       return
     }
+    // O Aimed Shot é powerup: beginAim/fireAim não passam por aqui e seguem
+    // disponíveis na exaustão, sem gastar estamina. Aqui só há chute normal.
+    if (this.stamina.exhausted) {
+      this.onBlockedTap()
+      return
+    }
     this.bufferedTap = null
 
     const result = this.computeTapKick(x, y)
@@ -1185,6 +1233,18 @@ export class PlayScene extends Phaser.Scene {
     }
 
     this.applyKick(result)
+  }
+
+  /**
+   * Toque normal durante a exaustão: não compute chute, não registra whiff,
+   * não quebra streak e não gasta Chutão. Só feedback — a própria barra já
+   * mostra `EXHAUSTED` e a tela está cinza.
+   */
+  private onBlockedTap(): void {
+    this.staminaBar.bump()
+    this.updateStaminaUi()
+    this.announceExhausted()
+    audio.play('ui', { pitch: 0.4, volume: 0.5 })
   }
 
   /** Guarda o toque para disparar no instante em que a bola fica chutável. */
@@ -1221,6 +1281,14 @@ export class PlayScene extends Phaser.Scene {
       return
     }
 
+    // Exaustão descarta o toque guardado antes de qualquer compute (logo, sem
+    // whiff, sem quebra de streak e sem consumo de Chutão).
+    if (this.stamina.exhausted) {
+      this.bufferedTap = null
+      this.onBlockedTap()
+      return
+    }
+
     const result = this.computeTapKick(buffered.x, buffered.y)
     if (result.kind !== 'kick') {
       // Se a bola se afastou do toque guardado, desiste em vez de chutar longe.
@@ -1238,6 +1306,18 @@ export class PlayScene extends Phaser.Scene {
   }
 
   private applyKick(result: KickResult): void {
+    // Última barreira: handleTap/resolveBufferedTap já checam a exaustão antes
+    // do compute, então um blocked aqui não pode ter gasto o Chutão.
+    const spend = this.stamina.spendKick()
+    if (spend.blocked) {
+      this.staminaBar.bump()
+      this.updateStaminaUi()
+      return
+    }
+    this.updateStaminaUi()
+    // O chute que zerou a barra ainda é aplicado; a exaustão começa depois.
+    if (spend.justExhausted) this.startExhaustion()
+
     this.ball.vx = result.vx
     this.ball.vy = result.vy
     this.ballSpin.residual = kickSpin(result.offset, result.power)
@@ -1261,6 +1341,48 @@ export class PlayScene extends Phaser.Scene {
       yoyo: true,
       ease: 'Quad.out',
     })
+  }
+
+  /** Um aviso por exaustão, nunca um `EXHAUSTED` a cada toque bloqueado. */
+  private announceExhausted(): void {
+    if (this.exhaustionAnnounced) return
+    this.exhaustionAnnounced = true
+    this.popLabel('EXHAUSTED', CSS_PALETTE.danger, false, 46)
+  }
+
+  private startExhaustion(): void {
+    this.announceExhausted()
+    if (this.exhaustionOverlayActive) return
+    this.exhaustionOverlayActive = true
+    this.tweens.killTweensOf(this.exhaustOverlay)
+    this.exhaustOverlay.setVisible(true)
+    this.tweens.add({
+      targets: this.exhaustOverlay,
+      alpha: { from: this.exhaustOverlay.alpha, to: 0.36 },
+      duration: 180,
+      ease: 'Quad.out',
+    })
+    audio.play('damp', { pitch: 0.7, volume: 0.6 })
+  }
+
+  private endExhaustion(): void {
+    this.exhaustionOverlayActive = false
+    this.exhaustionAnnounced = false
+    this.tweens.killTweensOf(this.exhaustOverlay)
+    this.tweens.add({
+      targets: this.exhaustOverlay,
+      alpha: 0,
+      duration: 220,
+      ease: 'Quad.out',
+      onComplete: () => this.exhaustOverlay.setVisible(false),
+    })
+  }
+
+  /** Reflete a recarga mesmo durante Aimed/hitstop e detecta as transições. */
+  private updateStaminaUi(): void {
+    this.staminaBar.set(this.stamina.ratio, this.stamina.exhausted, this.time.now)
+    if (this.stamina.exhausted && !this.exhaustionOverlayActive) this.startExhaustion()
+    else if (!this.stamina.exhausted && this.exhaustionOverlayActive) this.endExhaustion()
   }
 
   private lastArc(arcTime: number, power: number): void {
@@ -1305,8 +1427,13 @@ export class PlayScene extends Phaser.Scene {
       return
     }
     const tier = labelForCount(count)
+    const boost = kickBoostFor(count) * 100
     this.streakText.setColor(tier ? this.labelColor(tier) : CSS_PALETTE.inkDim)
-    this.streakText.setText(tier ? `STREAK ${count} · ${tier}` : `STREAK ${count}`)
+    this.streakText.setText(
+      tier
+        ? `STREAK ${count} · ${tier} · +${boost.toFixed(1)}%`
+        : `STREAK ${count} · +${boost.toFixed(1)}%`,
+    )
   }
 
   private labelColor(label: StreakLabel): string {
@@ -1483,6 +1610,13 @@ export class PlayScene extends Phaser.Scene {
     this.feverText.setVisible(false)
     this.streakText.setVisible(false)
     this.kickRing.setVisible(false)
+    // Exaustão não acompanha a bola morta; o retry reconstrói a cena.
+    this.staminaBar.setVisible(false)
+    this.tweens.killTweensOf(this.exhaustOverlay)
+    this.exhaustOverlay.setVisible(false).setAlpha(0)
+    this.exhaustionOverlayActive = false
+    this.exhaustionAnnounced = false
+    this.stamina.reset()
     audio.play('death')
     this.cameras.main.shake(180, 0.006)
     const save = this.registry.get('save') as SaveV1

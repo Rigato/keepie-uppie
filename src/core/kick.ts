@@ -36,6 +36,12 @@ export interface KickOptions {
   perfectWindow?: number
   /** Bônus de velocidade do Perfect; o Ponto Doce aumenta. */
   perfectBonus?: number
+  /**
+   * Multiplicador do bônus de streak na curva normal (1 = sem bônus). Não
+   * altera a curva-base nem a calibração de queda; o Chutão (`overrideSpeed`)
+   * ignora este multiplicador. Valores inválidos ou negativos viram 1.
+   */
+  speedMultiplier?: number
   touchRadius?: number
   angleRadius?: number
 }
@@ -66,6 +72,11 @@ export function clamp(value: number, min: number, max: number): number {
  * (`touchRadius`) é maior que a área do ângulo (`angleRadius`): o jogador pode
  * tocar um pouco fora da bola sem perder o chute, mas a mira continua com a
  * calibração de 60 u (centro = reto, borda do ângulo = máximo).
+ *
+ * O `speedMultiplier` é o bônus crescente de streak: multiplica somente a
+ * curva normal (base + boost profundo), sem mudar a curva-base. O Chutão
+ * (`overrideSpeed`) ignora o multiplicador e o Perfect continua somando o
+ * bônus depois, sem ser multiplicado.
  */
 export function computeKick(
   ball: BallLike,
@@ -77,6 +88,7 @@ export function computeKick(
     overrideSpeed,
     perfectWindow = TUNING.kick.perfectWindow,
     perfectBonus = TUNING.perfect.speedBonus,
+    speedMultiplier = 1,
     touchRadius = TUNING.kick.touchRadius,
     angleRadius = TUNING.kick.angleRadius,
   } = options
@@ -100,7 +112,9 @@ export function computeKick(
   const deepRatio = clamp((fallDistance - TUNING.kick.deepStartDrop) / deepSpan, 0, 1)
   const deepBoost =
     TUNING.kick.deepBonus * Math.pow(deepRatio, TUNING.kick.deepPowerCurve)
-  const chargedSpeed = overrideSpeed ?? baseSpeed + deepBoost
+  const multiplier =
+    Number.isFinite(speedMultiplier) && speedMultiplier >= 0 ? speedMultiplier : 1
+  const chargedSpeed = overrideSpeed ?? (baseSpeed + deepBoost) * multiplier
   const speed = perfect ? chargedSpeed + perfectBonus : chargedSpeed
 
   const maxSpeed = Math.max(

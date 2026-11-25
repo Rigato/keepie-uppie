@@ -34,6 +34,8 @@ export const PALETTE = {
   /** Gol: postes claros com rede accent. */
   goal: 0xf8f4e8,
   fever: 0xd9661a,
+  /** Camada cinza-azulada da exaustão: dessatura o mundo, não o HUD. */
+  exhaust: 0x5c6a75,
 } as const
 
 export const CSS_PALETTE = {

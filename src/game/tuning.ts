@@ -390,6 +390,24 @@ export const TUNING = {
     coinMultiplier: 2,
     /** Raio visual da aura de febre (acompanha a redução dos elementos). */
     feverAuraRadius: 56,
+    /**
+     * Bônus sutil de força do streak, aplicado à curva normal do chute (não ao
+     * Chutão) e calculado com o streak ANTES do chute atual. Os bônus de moedas
+     * e febre não mudam. [TESTE]
+     */
+    kickBoostPerKick: 0.005,
+    /** Teto do bônus de força: 5% em 10 chutes limpos (ON FIRE). [TESTE] */
+    kickBoostMax: 0.05,
+  },
+
+  stamina: {
+    max: 100,
+    /** Custo de um chute válido. 100/30 = 3 chutes cheios antes de esgotar. */
+    kickCost: 30,
+    /** Recarga por segundo fora da exaustão; 24/s torna 1 chute a cada ~1,25 s sustentável. */
+    regenPerSecond: 24,
+    /** Bloqueio após esgotar; a barra recarrega rápido de 0 a max nesse intervalo. */
+    recoverMs: 1200,
   },
 
   fx: {

@@ -17,6 +17,10 @@ export interface DebugState {
   /** Teto de queda do estágio atual (u/s) e estágio de ritmo da run. */
   fallSpeedLimit: number
   difficultyStage: number
+  /** Estamina em 0..100, bloqueio e bônus de força do streak em % (0.6.0). */
+  stamina: number
+  staminaExhausted: boolean
+  kickBoost: number
   extra: string
 }
 
@@ -34,5 +38,8 @@ export const DEBUG_STATE: DebugState = {
   lastKickPower: 0,
   fallSpeedLimit: 0,
   difficultyStage: 0,
+  stamina: 100,
+  staminaExhausted: false,
+  kickBoost: 0,
   extra: '',
 }

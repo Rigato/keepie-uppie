@@ -3,8 +3,8 @@
  * Smoke E2E do Keepie-Uppie (F6).
  *
  * Caminho crítico: boot → título → Play → chute → queda/morte → save → retry,
- * e a barra de ativáveis (Magnet, Power Kick e Streak Saver) consumindo a
- * carga e aplicando o efeito.
+ * a estamina esgotando/bloqueando/recuperando e a barra de ativáveis
+ * (Magnet, Power Kick e Streak Saver) consumindo a carga e aplicando o efeito.
  * Os cliques são de verdade (mouse via CDP); o estado é lido do objeto exposto
  * por `?debug=1` (`window.keepie`), que aponta para a cena Play em runtime.
  *
@@ -47,6 +47,8 @@ const TIMEOUT = {
   save: 1_000,
   retry: 1_000,
   bar: 1_500,
+  stamina: 1_500,
+  staminaRecover: 2_500,
   settle: 250,
 }
 
@@ -399,6 +401,156 @@ async function main() {
       )
 
       return `toque em (${x.toFixed(0)}, ${y.toFixed(0)}) · dead=false · started=${retried.started}`
+    })
+
+    await runStep('Estamina: 4 toques esgotam, bloqueia e recupera', async () => {
+      // Congela spawners, gols e morte como o passo da barra. Física e câmera
+      // também ficam paradas: os cliques são reais, então a bola precisa estar
+      // exatamente em (270, 600) do mundo para o toque ser válido.
+      const setup = await page.evaluate(() => {
+        const scene = window.keepie?.game?.scene?.getScene('Play')
+        if (!scene) return null
+
+        scene.spawner.update = () => []
+        scene.interactiveSpawner.update = () => []
+        scene.goalSpawner.update = () => null
+        for (const obstacle of scene.obstacles) obstacle.destroy()
+        scene.obstacles = []
+        for (const item of scene.interactives) item.destroy()
+        scene.interactives = []
+        for (const goal of scene.goals) goal.destroy()
+        scene.goals = []
+        scene.die = () => {}
+        scene.updateCamera = () => {}
+        scene.stepPhysics = () => {}
+        scene.started = true
+        scene.streak.reset()
+        scene.stamina.reset()
+        scene.ball.x = 270
+        scene.ball.y = 600
+        scene.ball.vx = 0
+        scene.ball.vy = 0
+        scene.arcApexY = 600
+        scene.cameraY = 0
+        scene.bufferedTap = null
+        scene.cameras.main.setScroll(0, 0)
+
+        const rect = document.querySelector('#game-root canvas')?.getBoundingClientRect()
+        const canvas =
+          rect && rect.width > 0
+            ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+            : null
+        return { canvas, max: scene.stamina.max, recoverMs: scene.stamina.recoverMs }
+      })
+      if (!setup) throw new Error('cena Play ausente')
+      if (!setup.canvas) throw new Error('canvas sem tamanho')
+
+      const toCss = (worldX, worldY) => ({
+        x: setup.canvas.left + (worldX / WORLD_WIDTH) * setup.canvas.width,
+        y: setup.canvas.top + (worldY / WORLD_HEIGHT) * setup.canvas.height,
+      })
+      const point = toCss(270, 600)
+      const place = () =>
+        page.evaluate(() => {
+          const scene = window.keepie.game.scene.getScene('Play')
+          scene.ball.x = 270
+          scene.ball.y = 600
+          scene.ball.vx = 0
+          scene.ball.vy = 0
+          scene.arcApexY = 600
+          scene.cameraY = 0
+          scene.bufferedTap = null
+          scene.cameras.main.setScroll(0, 0)
+        })
+      const read = () =>
+        page.evaluate(() => {
+          const scene = window.keepie.game.scene.getScene('Play')
+          return {
+            exhausted: scene.stamina.exhausted,
+            value: scene.stamina.value,
+            max: scene.stamina.max,
+            streak: scene.streak.count,
+            vy: scene.ball.vy,
+            overlayAlpha: scene.exhaustOverlay.alpha,
+            overlayVisible: scene.exhaustOverlay.visible,
+            label: scene.staminaBar.label.text,
+            streakHud: scene.streakText.text,
+          }
+        })
+
+      for (let i = 0; i < 4; i += 1) {
+        await place()
+        await page.mouse.click(point.x, point.y)
+        if (i < 3) await sleep(60)
+      }
+
+      const spent = await read()
+      if (!spent.exhausted) throw new Error(`4 chutes não esgotaram: ${JSON.stringify(spent)}`)
+      if (spent.value > 10) throw new Error(`barra não zerou: ${spent.value.toFixed(1)}`)
+      if (spent.streak !== 4) throw new Error(`streak ${spent.streak}; esperava 4`)
+      if (!spent.streakHud.includes('NICE') || !spent.streakHud.includes('+2.0%')) {
+        throw new Error(`HUD do streak sem NICE/+2.0%: "${spent.streakHud}"`)
+      }
+      if (!spent.label.includes('EXHAUSTED')) {
+        throw new Error(`rótulo da barra: "${spent.label}"`)
+      }
+
+      // O tween do cinza dura 180 ms: mede depois de assentar, não no 1º frame.
+      await sleep(250)
+      const faded = await poll(
+        async () => {
+          const state = await read()
+          return state.exhausted && state.overlayAlpha > 0.1 ? state : null
+        },
+        { timeout: TIMEOUT.stamina, interval: 40, label: 'overlay cinza na exaustão' },
+      )
+      if (!faded.overlayVisible) throw new Error('overlay cinza não ficou visível')
+
+      // 5º clique: não compute chute, não mexe no streak, não gasta Chutão.
+      await place()
+      const beforeStreak = (await read()).streak
+      await page.mouse.click(point.x, point.y)
+      const blocked = await read()
+      if (!blocked.exhausted) throw new Error('5º clique encerrou a exaustão')
+      if (blocked.streak !== beforeStreak) {
+        throw new Error(`toque bloqueado mudou o streak: ${beforeStreak} → ${blocked.streak}`)
+      }
+      if (blocked.vy !== 0) throw new Error(`toque bloqueado alterou vy: ${blocked.vy}`)
+
+      await sleep(setup.recoverMs + 400)
+      const recovered = await poll(
+        async () => {
+          const state = await read()
+          return !state.exhausted &&
+            state.value >= state.max - 0.5 &&
+            state.overlayAlpha < 0.02 &&
+            !state.overlayVisible &&
+            state.label === 'STAMINA'
+            ? state
+            : null
+        },
+        {
+          timeout: TIMEOUT.staminaRecover,
+          interval: 50,
+          label: 'barra cheia e overlay limpo após a recarga',
+        },
+      )
+      if (recovered.value !== recovered.max) {
+        throw new Error(`recarga incompleta: ${recovered.value.toFixed(1)}/${recovered.max}`)
+      }
+
+      // Deixa o cenário limpo para o passo seguinte da barra de ativáveis.
+      await page.evaluate(() => {
+        const scene = window.keepie.game.scene.getScene('Play')
+        scene.stamina.reset()
+        scene.streak.reset()
+      })
+
+      return (
+        `4 chutes → 0/${setup.max} · streak ${spent.streak} (${spent.streakHud}) · ` +
+        `cinza α ${faded.overlayAlpha.toFixed(2)} · 5º toque sem streak/vy · ` +
+        `recarga ${setup.recoverMs}ms`
+      )
     })
 
     await runStep('Barra: ativáveis gastam a carga', async () => {

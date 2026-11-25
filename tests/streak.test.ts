@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { StreakTracker, labelForCount } from '../src/core/streak'
+import { StreakTracker, kickBoostFor, labelForCount } from '../src/core/streak'
 import { TUNING } from '../src/game/tuning'
 
 describe('labelForCount', () => {
@@ -9,6 +9,21 @@ describe('labelForCount', () => {
     expect(labelForCount(TUNING.streak.greatAt)).toBe('GREAT')
     expect(labelForCount(TUNING.streak.onFireAt)).toBe('ON FIRE')
     expect(labelForCount(TUNING.streak.onFireAt + 50)).toBe('ON FIRE')
+  })
+})
+
+describe('kickBoostFor', () => {
+  it('cresce 0,5% por chute até o teto de 5%', () => {
+    expect(kickBoostFor(0)).toBeCloseTo(0, 10)
+    expect(kickBoostFor(3)).toBeCloseTo(0.015, 10)
+    expect(kickBoostFor(6)).toBeCloseTo(0.03, 10)
+    expect(kickBoostFor(10)).toBeCloseTo(0.05, 10)
+    expect(kickBoostFor(50)).toBeCloseTo(0.05, 10)
+  })
+
+  it('trata contagem negativa como zero', () => {
+    expect(kickBoostFor(-1)).toBeCloseTo(0, 10)
+    expect(kickBoostFor(-50)).toBeCloseTo(0, 10)
   })
 })
 
