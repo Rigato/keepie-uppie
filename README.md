@@ -24,7 +24,7 @@ O Vite sobe o servidor com `host: true`, então a página também abre pelo celu
 | `npm run test` | testes unitários (Vitest) |
 | `npm run build` | typecheck + build estático em `dist/` |
 | `npm run preview` | serve o build de `dist/` |
-| `npm run test:e2e` | smoke E2E com Playwright contra um preview (Chromium do sistema) |
+| `npm run test:e2e` | smoke E2E com Playwright contra um preview (Chromium do sistema ou instalado via `playwright-core`) |
 | `npm run package` | build + validação + ZIP e manifest em `release/` |
 
 ## Estrutura
@@ -43,7 +43,7 @@ O Vite sobe o servidor com `host: true`, então a página também abre pelo celu
 
 ## Publicação
 
-Push em `main` dispara `.github/workflows/deploy.yml`: instala com `npm ci`, roda `typecheck`, `test` e `build`, e publica `dist/` no GitHub Pages — https://rigato.github.io/keepie-uppie/
+Push em `main` dispara `.github/workflows/deploy.yml`: instala com `npm ci`, roda `typecheck`, `test`, `build` e o **smoke E2E** (Chromium via Playwright), e só então publica `dist/` no GitHub Pages — https://rigato.github.io/keepie-uppie/
 
 A fonte do Pages precisa estar em **GitHub Actions**. Se voltar para "Deploy from a branch", o Pages publica o `index.html` de origem (que aponta para `/src/main.ts`) e o site quebra.
 

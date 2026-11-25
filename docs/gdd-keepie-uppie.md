@@ -101,7 +101,7 @@ Altitude em **metros** (contador de altura) + moedas coletadas. Best pessoal **l
 
 #### 3.7.1 Goal — trave/gol (0.4.0)
 Set piece a cada **400–600 m**, nunca antes de 100 m (primeiro em 200 m): moldura de gol com **vão 180×120** e postes de 14. Passar pelo vão = `GOAL!` + **15 moedas**.
-- **Postes** são hard (refletem a bola); o **travessão é sensor visual** (não colide) para o jogador conseguir atravessar o vão. `[CONFIRMAR]` travessão sensor × hard; a proposta original pedia os dois duros, mas um travessão duro fecha a passagem num jogo vertical.
+- **Postes** são hard (refletem a bola); o **travessão é sensor visual** (não colide) para o jogador conseguir atravessar o vão. **Decidido pelo usuário (25/11/2026): sensor mantido**; a proposta original pedia os dois duros, mas um travessão duro fecha a passagem num jogo vertical.
 - `[CONFIRMAR]` recompensa: 15 moedas (recomendado na proposta: 15–25, ou febre curta). O goal nasce acima da câmera e é descartado ao sair por baixo.
 
 ### 3.8 Camadas de skill do MVP1
@@ -138,7 +138,7 @@ Modelo: **3 slots, sem duplicatas, com devolução ao pool**. Comprar adiciona a
 | **Power Kick** / Chutão | Ativável. Toque no ícone arma; o próximo chute válido sai a **2750 u/s**, mantendo o ângulo do ponto de toque; o Perfect soma +60 (2810, abaixo da mola em 2850). Whiff não dispara. | 40 |
 | **Streak Saver** / Salva-Streak | Ativável. Toque no ícone arma; o próximo whiff não quebra o streak. Não protege contra morte nem contra obstáculo. | 25 |
 
-`[CONFIRMAR]` preços 50/30/40/25, a regra de **uma carga por tipo por run**, o gatilho do Chutão (ativar e depois chutar) e a força da rede (1500 u/s / 180 u). A Safety Net foi decidida nos rounds 3–4; Magnet, Power Kick e Streak Saver entraram no Ciclo 0.4. O detalhamento de design e as alternativas estão em `docs/proposta-conteudo-0.3.md`.
+**Decidido pelo usuário (25/11/2026):** a barra fica no canto inferior esquerdo e funciona no celular; a carga é gasta **na ativação** (não quando o efeito dispara); o Chutão é ativado e depois chutado. `[CONFIRMAR]` preços 50/30/40/25, a regra de **uma carga por tipo por run** e a força da rede (1500 u/s / 180 u). A Safety Net foi decidida nos rounds 3–4; Magnet, Power Kick e Streak Saver entraram no Ciclo 0.4. O detalhamento de design e as alternativas estão em `docs/proposta-conteudo-0.3.md`.
 
 ---
 

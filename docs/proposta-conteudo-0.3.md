@@ -138,7 +138,7 @@ Modelo decidido no GDD: **3 slots, sem duplicatas, devolução ao pool**, preço
 - **Feedback:** aura e timer ligados ao toque no ícone; som de pickup na primeira moeda.
 - **Knobs:** duração 15 000 ms, raio 144, puxão 620, preço 30, 1 carga por run.
 - **Risco:** adianta muitas moedas; com Midas, inflaciona; a ativação manual pode ser desperdiçada.
-- **[CONFIRMAR]** O gatilho manual (implementado) substituiu o Magnet Start automático. 15 s continua sendo o valor certo?
+- **Decidido pelo usuário (25/11/2026):** o gatilho manual substituiu o Magnet Start automático e a barra fica no canto inferior esquerdo. `[CONFIRMAR]` 15 s continua sendo o valor certo?
 
 #### Power Kick — "Chutão" · `[ENTREGUE 0.4.0]`
 
@@ -147,7 +147,7 @@ Modelo decidido no GDD: **3 slots, sem duplicatas, devolução ao pool**, preço
 - **Feedback:** som pesado, squash grande, shake, banner "CHUTÃO!", flash; o item some da barra quando o chute dispara.
 - **Knobs:** `chutaoSpeed` 2750, 1 carga, sem bônus lateral, Perfect soma +60 (2810, abaixo da mola), preço 40.
 - **Risco:** subverte "força vem da queda" por um chute; se empilhar com Perfect/Aimed, estoura a hierarquia de forças.
-- **[CONFIRMAR]** O gatilho implementado é **ativar e depois chutar** (não o primeiro toque automático). A carga é gasta na ativação; se o jogador morrer antes de chutar, perdeu. É o comportamento desejado?
+- **Decidido pelo usuário (25/11/2026):** **ativar e depois chutar**; a carga é gasta na ativação; se o jogador morrer antes de chutar, perdeu a carga.
 
 #### Streak Saver — "Salva-Streak" · `[ENTREGUE 0.4.0]`
 
@@ -156,7 +156,7 @@ Modelo decidido no GDD: **3 slots, sem duplicatas, devolução ao pool**, preço
 - **Feedback:** escudo no ícone com anel pulsante; ao salvar, banner "STREAK SAFE" e burst.
 - **Knobs:** 1 carga, só whiff, preço 25; sem efeito na morte.
 - **Risco:** estado invisível; se obstáculo também quebra streak, a regra fica ambígua.
-- **[CONFIRMAR]** A ativação gasta a unidade; se o jogador não der whiff, perdeu a carga. O preço 25 está no ponto? O que quebra o streak hoje é só whiff (mantido no v1).
+- **Decidido pelo usuário (25/11/2026):** a ativação gasta a unidade; se o jogador não der whiff, perdeu a carga. `[CONFIRMAR]` O preço 25 está no ponto? O que quebra o streak hoje é só whiff (mantido no v1).
 
 ### 3.4 Outros elementos
 
@@ -167,7 +167,7 @@ Modelo decidido no GDD: **3 slots, sem duplicatas, devolução ao pool**, preço
 - **Feedback:** rede diagonal, banner "GOAL!", flash e burst; postes com flash de hard.
 - **Knobs:** vão 180×120, poste 14, a cada 400–600 m, 15 moedas, nunca antes de 100 m, 1 por tela.
 - **Risco:** lê como argola gigante; poste duro pode desviar para a morte (nunca mata direto); celebração pode esconder a bola.
-- **[CONFIRMAR]** Travessão sensor (implementado) × hard; recompensa de 15 moedas × 15–25 × febre curta. O GDD registra a mesma dúvida.
+- **Decidido pelo usuário (25/11/2026):** travessão **sensor** (implementado), não hard. `[CONFIRMAR]` recompensa de 15 moedas × 15–25 × febre curta. O GDD registra a mesma dúvida.
 
 #### Biome — "Bioma" · `[DEPOIS]`
 

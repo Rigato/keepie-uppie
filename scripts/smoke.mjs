@@ -2,7 +2,9 @@
 /**
  * Smoke E2E do Keepie-Uppie (F6).
  *
- * Caminho crítico: boot → título → Play → chute → queda/morte → save → retry.
+ * Caminho crítico: boot → título → Play → chute → queda/morte → save → retry,
+ * e a barra de ativáveis (Magnet, Power Kick e Streak Saver) consumindo a
+ * carga e aplicando o efeito.
  * Os cliques são de verdade (mouse via CDP); o estado é lido do objeto exposto
  * por `?debug=1` (`window.keepie`), que aponta para a cena Play em runtime.
  *
@@ -10,6 +12,7 @@
  *   node scripts/smoke.mjs
  *   BASE_URL=http://localhost:5173/ node scripts/smoke.mjs
  *   CHROME_PATH=/caminho/para/chromium node scripts/smoke.mjs
+ *   npx playwright-core install chromium   # fallback sem Chromium do sistema
  *
  * Sai com código 1 se qualquer passo falhar ou se houver erro de console.
  */
@@ -21,6 +24,8 @@ const CHROME_CANDIDATES = [
   '/usr/bin/chromium',
   '/usr/bin/chromium-browser',
   '/usr/bin/google-chrome',
+  // No CI o Chromium vem de `npx playwright-core install chromium`.
+  chromium.executablePath(),
 ].filter((candidate) => Boolean(candidate))
 const CHROME_PATH = CHROME_CANDIDATES.find((candidate) => existsSync(candidate)) ?? '/usr/bin/chromium'
 const BASE_URL = process.env.BASE_URL?.trim() || 'http://localhost:4173/'
@@ -41,6 +46,7 @@ const TIMEOUT = {
   retryReady: 3_000,
   save: 1_000,
   retry: 1_000,
+  bar: 1_500,
   settle: 250,
 }
 
@@ -259,6 +265,25 @@ async function main() {
       return 'Shop → BACK → Title, sem reabrir a loja'
     })
 
+    await runStep('Save: loadout de teste', async () => {
+      // Semeia o loadout pelo registry (o caminho de compra/equipar é coberto
+      // pela loja e pela validação manual). Assim o Play já nasce com os três
+      // ativáveis na barra, sem depender de moedas acumuladas.
+      const seeded = await page.evaluate(() => {
+        const game = window.keepie?.game
+        const save = game?.registry?.get('save')
+        if (!game || !save) return null
+        game.registry.set('save', {
+          ...save,
+          inventory: { net: 1, magnet: 1, chutao: 1, streak: 1 },
+          loadout: ['magnet', 'chutao', 'streak'],
+        })
+        return { bestMeters: save.bestMeters }
+      })
+      if (!seeded) throw new Error('save ausente no registry')
+      return 'inventário 1× cada · loadout magnet/chutao/streak'
+    })
+
     await runStep('Título: primeiro toque', async () => {
       const x = Math.round(VIEWPORT.width / 2)
       const y = Math.round(VIEWPORT.height * 0.7)
@@ -275,7 +300,16 @@ async function main() {
         },
         { timeout: TIMEOUT.play, interval: 40, label: 'cena Play com bola' },
       )
-      return `bola em (${playState.ball.x.toFixed(0)}, ${playState.ball.y.toFixed(0)}) · y de tela ${(playState.ball.y - playState.cameraY).toFixed(0)}`
+
+      const bar = await page.evaluate(() => {
+        const scene = window.keepie?.game?.scene?.getScene('Play')
+        return scene?.consumableBar?.visibleIds ?? null
+      })
+      if (!Array.isArray(bar) || bar.length !== 3) {
+        throw new Error(`barra com 3 ativáveis esperada; recebi ${JSON.stringify(bar)}`)
+      }
+
+      return `bola em (${playState.ball.x.toFixed(0)}, ${playState.ball.y.toFixed(0)}) · y de tela ${(playState.ball.y - playState.cameraY).toFixed(0)} · barra ${bar.join('/')}`
     })
 
     await runStep('Chute: bola em queda', async () => {
@@ -365,6 +399,194 @@ async function main() {
       )
 
       return `toque em (${x.toFixed(0)}, ${y.toFixed(0)}) · dead=false · started=${retried.started}`
+    })
+
+    await runStep('Barra: ativáveis gastam a carga', async () => {
+      // O save semeado antes do primeiro toque volta no retry. Congela spawners
+      // e a morte para medir só a barra, sem o passo depender da física da run.
+      const setup = await page.evaluate(() => {
+        const scene = window.keepie?.game?.scene?.getScene('Play')
+        if (!scene) return null
+
+        scene.spawner.update = () => []
+        scene.interactiveSpawner.update = () => []
+        scene.goalSpawner.update = () => null
+        for (const obstacle of scene.obstacles) obstacle.destroy()
+        scene.obstacles = []
+        for (const item of scene.interactives) item.destroy()
+        scene.interactives = []
+        for (const goal of scene.goals) goal.destroy()
+        scene.goals = []
+        scene.die = () => {}
+        scene.started = true
+        scene.startY = 0
+        scene.minY = 0
+        scene.ball.x = 270
+        scene.ball.y = 620
+        scene.ball.vx = 0
+        scene.ball.vy = 0
+        scene.arcApexY = 620
+        scene.cameraY = 0
+        scene.cameras.main.setScroll(0, 0)
+
+        const rect = document.querySelector('#game-root canvas')?.getBoundingClientRect()
+        const canvas =
+          rect && rect.width > 0
+            ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+            : null
+        return {
+          bar: [...scene.consumableBar.visibleIds],
+          runItems: [...scene.runItems],
+          canvas,
+        }
+      })
+      if (!setup) throw new Error('cena Play ausente')
+      if (!setup.canvas) throw new Error('canvas sem tamanho')
+      if (setup.bar.join(',') !== 'magnet,chutao,streak') {
+        throw new Error(`barra inicial ${JSON.stringify(setup.bar)}; esperava magnet,chutao,streak`)
+      }
+      if (setup.runItems.join(',') !== 'magnet,chutao,streak') {
+        throw new Error(`runItems ${JSON.stringify(setup.runItems)}; esperava os três ativáveis`)
+      }
+
+      const toCss = (worldX, worldY) => ({
+        x: setup.canvas.left + (worldX / WORLD_WIDTH) * setup.canvas.width,
+        y: setup.canvas.top + (worldY / WORLD_HEIGHT) * setup.canvas.height,
+      })
+      const slotX = (id) =>
+        page.evaluate(
+          (slotId) =>
+            window.keepie?.game?.scene?.getScene('Play')?.consumableBar?.slots?.get(slotId)
+              ?.container?.x ?? null,
+          id,
+        )
+      const readSave = () =>
+        page.evaluate(() => {
+          const raw = localStorage.getItem('keepie.save')
+          if (!raw) return null
+          try {
+            return JSON.parse(raw)
+          } catch {
+            return null
+          }
+        })
+      const tapSlot = async (id) => {
+        const x = await slotX(id)
+        if (!Number.isFinite(x)) throw new Error(`slot ${id} não encontrado na barra`)
+        const point = toCss(x, 1002)
+        await page.mouse.click(point.x, point.y)
+      }
+
+      // 1) Magnet: o toque liga o efeito e gasta a unidade na hora.
+      await tapSlot('magnet')
+      const magnet = await poll(
+        async () => {
+          const state = await page.evaluate(() => {
+            const scene = window.keepie?.game?.scene?.getScene('Play')
+            return scene
+              ? {
+                  remaining: Math.round(scene.magnetEndsAt - scene.time.now),
+                  bar: [...scene.consumableBar.visibleIds],
+                }
+              : null
+          })
+          if (!state || state.remaining <= 0) return null
+          const save = await readSave()
+          if (!save || save.inventory?.magnet !== 0) return null
+          return { ...state, save }
+        },
+        { timeout: TIMEOUT.bar, interval: 40, label: 'Magnet ativo e unidade gasta' },
+      )
+      if (magnet.bar.includes('magnet')) throw new Error('Magnet continuou na barra depois de ativar')
+      if (magnet.save.inventory.net !== 1) throw new Error('Safety Net foi gasta sem salvar a bola')
+
+      // 2) Power Kick: ativa, arma e o próximo chute válido sai a 2750 u/s.
+      await tapSlot('chutao')
+      await poll(
+        () =>
+          page.evaluate(() => {
+            const scene = window.keepie?.game?.scene?.getScene('Play')
+            const save = window.keepie?.game?.registry?.get('save')
+            return Boolean(scene?.chutaoArmed && save?.inventory?.chutao === 0)
+          }),
+        { timeout: TIMEOUT.bar, interval: 40, label: 'Power Kick armado e unidade gasta' },
+      )
+      const armedBar = await page.evaluate(() => [
+        ...window.keepie.game.scene.getScene('Play').consumableBar.visibleIds,
+      ])
+      if (!armedBar.includes('chutao')) throw new Error('anel do Power Kick sumiu antes do chute')
+
+      const kick = await page.evaluate(() => {
+        const scene = window.keepie.game.scene.getScene('Play')
+        scene.ball.x = 270
+        scene.ball.y = 640
+        scene.ball.vx = 0
+        scene.ball.vy = 900
+        scene.arcApexY = 300
+        scene.bufferedTap = null
+        scene.handleTap(290, 640)
+        return {
+          speed: Math.round(Math.hypot(scene.ball.vx, scene.ball.vy)),
+          armed: scene.chutaoArmed,
+          bar: [...scene.consumableBar.visibleIds],
+        }
+      })
+      if (kick.armed) throw new Error('Power Kick continuou armado depois do chute')
+      if (kick.bar.includes('chutao')) throw new Error('Power Kick continuou na barra depois do chute')
+      if (kick.speed < 2740 || kick.speed > 2760) {
+        throw new Error(`chute do Power Kick a ${kick.speed} u/s; esperava ~2750`)
+      }
+
+      // 3) Streak Saver: ativa e o próximo whiff não zera o streak.
+      await tapSlot('streak')
+      await poll(
+        () =>
+          page.evaluate(() => {
+            const scene = window.keepie?.game?.scene?.getScene('Play')
+            const save = window.keepie?.game?.registry?.get('save')
+            return Boolean(scene?.streakSaverArmed && save?.inventory?.streak === 0)
+          }),
+        { timeout: TIMEOUT.bar, interval: 40, label: 'Streak Saver armado e unidade gasta' },
+      )
+      const streak = await page.evaluate(() => {
+        const scene = window.keepie.game.scene.getScene('Play')
+        scene.streak.registerKick()
+        scene.streak.registerKick()
+        scene.streak.registerKick()
+        const before = scene.streak.count
+        scene.registerWhiff()
+        return {
+          before,
+          after: scene.streak.count,
+          armed: scene.streakSaverArmed,
+          bar: [...scene.consumableBar.visibleIds],
+        }
+      })
+      if (streak.after !== streak.before) {
+        throw new Error(`whiff quebrou o streak protegido: ${streak.before} → ${streak.after}`)
+      }
+      if (streak.armed) throw new Error('Streak Saver continuou armado depois do whiff')
+      if (streak.bar.length > 0) {
+        throw new Error(`barra deveria esvaziar; ainda tem ${streak.bar.join(',')}`)
+      }
+
+      const finalSave = await poll(
+        async () => {
+          const save = await readSave()
+          const usedUp =
+            save?.inventory?.magnet === 0 &&
+            save?.inventory?.chutao === 0 &&
+            save?.inventory?.streak === 0
+          return usedUp ? save : null
+        },
+        { timeout: TIMEOUT.bar, interval: 40, label: 'consumo persistido no save' },
+      )
+      if (finalSave.inventory.net !== 1) throw new Error('Safety Net passiva foi consumida')
+      if (finalSave.loadout.length !== 0) {
+        throw new Error(`loadout deveria esvaziar; ficou ${JSON.stringify(finalSave.loadout)}`)
+      }
+
+      return `Magnet ${magnet.remaining} ms · Power Kick ${kick.speed} u/s · streak ${streak.before}→${streak.after} · net intacta`
     })
 
     await runStep('Console sem erros', async () => {
