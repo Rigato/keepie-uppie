@@ -2,6 +2,13 @@ import Phaser from 'phaser'
 import { metersFromTop, ratchetCameraY, smoothCameraY } from '../core/camera'
 import { reflectVelocity, wallBounce } from '../core/collision'
 import { resolveAim } from '../core/aim'
+import {
+  aimOffset,
+  createBallSpin,
+  kickSpin,
+  stepBallSpin,
+  type BallSpinState,
+} from '../core/ball-spin'
 import { difficultyStageAt, fallSpeedLimitAt } from '../core/difficulty'
 import { InteractiveSpawner } from '../core/interactive-spawner'
 import { computeKick, isInsideBall, type KickResult } from '../core/kick'
@@ -23,7 +30,7 @@ import { gameEvents } from '../game/events'
 import type { BallLike } from '../game/contracts'
 import { CSS_PALETTE, PALETTE } from '../game/palette'
 import { TUNING } from '../game/tuning'
-import { createBallView } from '../ui/ball'
+import { createBallView, type BallView } from '../ui/ball'
 import { ConsumableBar } from '../ui/consumable-bar'
 import { createGoal, type GoalInstance } from '../objects/goal'
 import { createObstacle, type ObstacleContact, type ObstacleInstance } from '../objects/obstacles'
@@ -48,6 +55,9 @@ type BallState = BallLike
 export class PlayScene extends Phaser.Scene {
   private ball: BallState = { x: 0, y: 0, vx: 0, vy: 0, r: TUNING.ball.radius }
   private ballView!: Phaser.GameObjects.Container
+  /** Arte da bola: container externo (glow/marcador) fica parado; só o padrão gira. */
+  private ballArt!: BallView
+  private ballSpin: BallSpinState = createBallSpin()
   private hud!: Hud
   private grid!: Phaser.GameObjects.Graphics
   private parallax!: Parallax
@@ -172,6 +182,7 @@ export class PlayScene extends Phaser.Scene {
     this.shieldHudAt = 0
     this.sweetHudAt = 0
     this.deathShopRect.setTo(0, 0, 0, 0)
+    this.ballSpin = createBallSpin()
     DEBUG_STATE.powerup = '—'
 
     this.cameras.main.setScroll(0, 0)
@@ -206,7 +217,8 @@ export class PlayScene extends Phaser.Scene {
         this.add.circle(0, 0, 5, PALETTE.sweet, 1),
       ])
       .setVisible(false)
-    this.ballView.add([glow, createBallView(this, TUNING.ball.radius), this.sweetMarker])
+    this.ballArt = createBallView(this, TUNING.ball.radius)
+    this.ballView.add([glow, this.ballArt, this.sweetMarker])
 
     // Área de chute: anel de pontos opcional (tuning com `?ring=1`).
     const kickDots: Phaser.GameObjects.Arc[] = []
@@ -398,6 +410,7 @@ export class PlayScene extends Phaser.Scene {
     this.updateFever()
     this.updateKickRing()
     this.updateTrail()
+    this.updateBallSpin(dt)
     this.drawGrid()
     this.syncView()
   }
@@ -843,6 +856,7 @@ export class PlayScene extends Phaser.Scene {
 
     this.ball.vx = shot.dir.x * shot.speed
     this.ball.vy = shot.dir.y * shot.speed
+    this.ballSpin.residual = kickSpin(aimOffset(shot.dir.x), shot.ratio)
     this.arcApexY = this.ball.y
     this.lastArc((2 * shot.speed) / TUNING.physics.gravity, shot.ratio)
     this.markStarted()
@@ -1075,6 +1089,17 @@ export class PlayScene extends Phaser.Scene {
     this.cameras.main.flash(90, 255, 245, 210)
   }
 
+  /**
+   * Avança a rotação visual da bola a partir do `vx` atual e do residual do
+   * chute. Só a camada de padrão gira: o glow e o marcador de Ponto Doce são
+   * irmãos no container externo e continuam parados (e o squash usa o
+   * container externo, não esta rotação).
+   */
+  private updateBallSpin(dt: number): void {
+    stepBallSpin(this.ballSpin, this.ball.vx, dt)
+    this.ballArt.pattern.setRotation(this.ballSpin.angle)
+  }
+
   private syncView(): void {
     this.ballView.setPosition(this.ball.x, this.ball.y)
 
@@ -1177,6 +1202,7 @@ export class PlayScene extends Phaser.Scene {
   private applyKick(result: KickResult): void {
     this.ball.vx = result.vx
     this.ball.vy = result.vy
+    this.ballSpin.residual = kickSpin(result.offset, result.power)
     this.arcApexY = this.ball.y
     this.lastArc(result.arcTime, result.power)
 

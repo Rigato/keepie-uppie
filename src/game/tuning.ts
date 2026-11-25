@@ -11,6 +11,25 @@ export const TUNING = {
 
   ball: {
     radius: 30,
+    /**
+     * Rotação visual (não muda a física): a rolagem é `vx / raio × fator`,
+     * com teto em `spinMax`. 0.42 dá ~1,5 volta/s num chute lateral médio e
+     * evita que o padrão vire um borrão nos chutes fortes. [TESTE]
+     */
+    spinRollFactor: 0.42,
+    /** Teto da rolagem visual em rad/s (~2,9 voltas/s). [TESTE] */
+    spinMax: 18,
+    /**
+     * Giro residual do chute a força cheia (rad/s). É somado à rolagem e
+     * decai durante o voo; o toque central sai em backspin. [TESTE]
+     */
+    spinKick: 5.5,
+    /** Peso do backspin no toque central, em fração do giro lateral máximo. [TESTE] */
+    spinBackspin: 0.65,
+    /** Decaimento exponencial do giro residual do chute (1/s). [TESTE] */
+    spinDamping: 0.8,
+    /** Giro decorativo da bola do título (rad/s): ~16 s por volta. [TESTE] */
+    titleSpin: 0.4,
   },
 
   physics: {

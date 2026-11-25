@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { normalizeAngle } from '../core/ball-spin'
 import { audio } from '../fx/audio'
 import { BUILD_LABEL } from '../game/build-info'
 import { FONT_MONO, FONT_SANS } from '../game/config'
@@ -6,7 +7,7 @@ import { CSS_PALETTE, PALETTE } from '../game/palette'
 import { TUNING } from '../game/tuning'
 import type { PlatformService } from '../platform/types'
 import { formatMeters, type SaveV1 } from '../platform/storage'
-import { createBallView } from '../ui/ball'
+import { createBallView, type BallView } from '../ui/ball'
 import { Parallax } from '../ui/parallax'
 
 export class BootScene extends Phaser.Scene {
@@ -26,6 +27,8 @@ export class BootScene extends Phaser.Scene {
 export class TitleScene extends Phaser.Scene {
   private starting = false
   private parallax?: Parallax
+  /** Bola decorativa; o padrão gira devagar enquanto o brilho fica parado. */
+  private ballArt?: BallView
   /**
    * Bloqueio curto de input depois de a cena nascer. A loja volta para o
    * título no `pointerup` do BACK, e o mesmo release pode cair no botão SHOP
@@ -51,7 +54,8 @@ export class TitleScene extends Phaser.Scene {
     this.parallax.update(0, this.time.now)
 
     this.add.circle(width / 2, height * 0.24, 132, PALETTE.accent, 0.08)
-    createBallView(this, 58).setPosition(width / 2, height * 0.24)
+    this.ballArt = createBallView(this, 58)
+    this.ballArt.setPosition(width / 2, height * 0.24)
 
     this.add
       .text(width / 2, height * 0.39, 'KEEPIE', {
@@ -179,8 +183,14 @@ export class TitleScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-ENTER', () => this.startRun())
   }
 
-  update(): void {
+  update(_time: number, deltaMs: number): void {
     this.parallax?.update(0, this.time.now)
+    if (this.ballArt) {
+      const dt = Math.min(deltaMs, 50) / 1000
+      this.ballArt.pattern.setRotation(
+        normalizeAngle(this.ballArt.pattern.rotation + TUNING.ball.titleSpin * dt),
+      )
+    }
   }
 
   private startRun(): void {

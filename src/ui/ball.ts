@@ -8,8 +8,10 @@ import { PALETTE } from '../game/palette'
  * "flor" de um ícone desenhado em anel.
  *
  * A textura é gerada no canvas em 4× a resolução de exibição e cacheada por
- * raio no TextureManager da cena, então cada bola é um único Image dentro de
- * um Container. O caller posiciona/escala o container à vontade.
+ * raio no TextureManager da cena. São três camadas alinhadas: corpo (gradiente
+ * estático), padrão (gomos e costuras, a única que gira) e acabamento (sombra,
+ * brilho e contorno, estático). O caller posiciona/escala o container à
+ * vontade e gira `pattern` para a bola rolar sem o brilho girar junto.
  */
 
 const PHI = (1 + Math.sqrt(5)) / 2
@@ -17,7 +19,8 @@ const SUPERSAMPLE = 4
 const CAMERA_DISTANCE = 4.1
 /** Escala do padrão dentro do contorno (1 = gomos até a silhueta). */
 const PATTERN_SCALE = 1
-const TEXTURE_VERSION = 1
+/** v2: textura única separada em base + padrão + acabamento. */
+const TEXTURE_VERSION = 2
 
 type Vec3 = { x: number; y: number; z: number }
 
@@ -179,25 +182,34 @@ function buildTruncatedIcosahedron(): Face[] {
   return result
 }
 
+interface BallTextureKeys {
+  base: string
+  pattern: string
+  top: string
+}
+
 /**
- * Gera a textura uma única vez por raio. O canvas tem margem transparente
- * para o contorno e para o antialias; a bola continua com o raio pedido.
+ * Gera as três camadas uma única vez por raio. O canvas tem margem
+ * transparente para o contorno e para o antialias; a bola continua com o raio
+ * pedido. Se só parte das chaves existir (hot reload), recria as três para não
+ * misturar camadas de versões diferentes.
  */
-function ensureBallTexture(scene: Phaser.Scene, radius: number): string {
-  const key = `keepie-ball-v${TEXTURE_VERSION}-${Math.round(radius * 10)}`
-  if (scene.textures.exists(key)) return key
+function ensureBallTextures(scene: Phaser.Scene, radius: number): BallTextureKeys {
+  const suffix = Math.round(radius * 10)
+  const keys: BallTextureKeys = {
+    base: `keepie-ball-v${TEXTURE_VERSION}-base-${suffix}`,
+    pattern: `keepie-ball-v${TEXTURE_VERSION}-pattern-${suffix}`,
+    top: `keepie-ball-v${TEXTURE_VERSION}-top-${suffix}`,
+  }
+  const layers = [keys.base, keys.pattern, keys.top]
+  if (layers.every((key) => scene.textures.exists(key))) return keys
+  for (const key of layers) {
+    if (scene.textures.exists(key)) scene.textures.remove(key)
+  }
 
   const radiusPx = radius * SUPERSAMPLE
   const margin = Math.ceil(radiusPx * 0.09) + 4
   const size = Math.ceil(radiusPx * 2 + margin * 2)
-  const texture = scene.textures.createCanvas(key, size, size)
-  if (!texture) throw new Error('Não foi possível criar a textura da bola')
-
-  const ctx = texture.getContext()
-  ctx.clearRect(0, 0, size, size)
-  ctx.lineCap = 'round'
-  ctx.lineJoin = 'round'
-
   const cx = size / 2
   const cy = size / 2
 
@@ -244,28 +256,6 @@ function ensureBallTexture(scene: Phaser.Scene, radius: number): string {
 
   const light = normalize(vec(-0.5, 0.62, 0.72))
 
-  const drawFace = (face: ProjectedFace): void => {
-    const [r, g, b] = face.dark
-      ? shade(PALETTE.ballPatch, 0.78 + 0.5 * Math.max(0, dot(face.normal, light)))
-      : [0, 0, 0]
-    ctx.beginPath()
-    for (let i = 0; i < face.points.length; i += 1) {
-      const p = face.points[i]
-      if (i === 0) ctx.moveTo(p.x, p.y)
-      else ctx.lineTo(p.x, p.y)
-    }
-    ctx.closePath()
-    if (face.dark) {
-      ctx.fillStyle = `rgb(${r}, ${g}, ${b})`
-      ctx.fill()
-    } else {
-      // Painéis claros: variação sutil de luz, sem virar mosaico.
-      const ndl = Math.max(0, dot(face.normal, light))
-      ctx.fillStyle = ndl > 0.62 ? 'rgba(255, 255, 255, 0.055)' : 'rgba(19, 35, 58, 0.035)'
-      ctx.fill()
-    }
-  }
-
   const faces = buildTruncatedIcosahedron()
   const projected: ProjectedFace[] = []
 
@@ -288,32 +278,29 @@ function ensureBallTexture(scene: Phaser.Scene, radius: number): string {
 
   projected.sort((a, b) => a.centroid.z - b.centroid.z)
 
-  ctx.save()
-  ctx.beginPath()
-  ctx.arc(cx, cy, radiusPx, 0, Math.PI * 2)
-  ctx.clip()
+  const drawFace = (ctx: CanvasRenderingContext2D, face: ProjectedFace): void => {
+    const [r, g, b] = face.dark
+      ? shade(PALETTE.ballPatch, 0.78 + 0.5 * Math.max(0, dot(face.normal, light)))
+      : [0, 0, 0]
+    ctx.beginPath()
+    for (let i = 0; i < face.points.length; i += 1) {
+      const p = face.points[i]
+      if (i === 0) ctx.moveTo(p.x, p.y)
+      else ctx.lineTo(p.x, p.y)
+    }
+    ctx.closePath()
+    if (face.dark) {
+      ctx.fillStyle = `rgb(${r}, ${g}, ${b})`
+      ctx.fill()
+    } else {
+      // Painéis claros: variação sutil de luz, sem virar mosaico.
+      const ndl = Math.max(0, dot(face.normal, light))
+      ctx.fillStyle = ndl > 0.62 ? 'rgba(255, 255, 255, 0.055)' : 'rgba(19, 35, 58, 0.035)'
+      ctx.fill()
+    }
+  }
 
-  // 1. Corpo com gradiente radial (luz no canto superior esquerdo).
-  const body = ctx.createRadialGradient(
-    cx - radiusPx * 0.42,
-    cy - radiusPx * 0.46,
-    radiusPx * 0.08,
-    cx + radiusPx * 0.02,
-    cy + radiusPx * 0.06,
-    radiusPx * 1.12,
-  )
-  const baseLight = lerpColor(PALETTE.ballBase, 0xffffff, 0.55)
-  const baseDeep = lerpColor(PALETTE.ballBase, PALETTE.ballSeam, 0.3)
-  body.addColorStop(0, `rgb(${baseLight[0]}, ${baseLight[1]}, ${baseLight[2]})`)
-  body.addColorStop(0.58, rgba(PALETTE.ballBase, 1))
-  body.addColorStop(1, `rgb(${baseDeep[0]}, ${baseDeep[1]}, ${baseDeep[2]})`)
-  ctx.fillStyle = body
-  ctx.fillRect(0, 0, size, size)
-
-  // 2. Faces visíveis (pentágonos escuros e facetas claras).
-  for (const face of projected) drawFace(face)
-
-  // 3. Costuras: sombra fina embaixo + fio claro de costura em cima.
+  // Costuras: sombra fina embaixo + fio claro de costura em cima.
   const seams = new Map<string, [number, number, number, number]>()
   const edgeKey = (a: { x: number; y: number }, b: { x: number; y: number }): string => {
     const pa = `${Math.round(a.x * 4)},${Math.round(a.y * 4)}`
@@ -330,92 +317,162 @@ function ensureBallTexture(scene: Phaser.Scene, radius: number): string {
 
   const seamShadow = Math.max(1, radiusPx * 0.029)
   const seamLight = Math.max(0.7, radiusPx * 0.013)
-  ctx.strokeStyle = rgba(PALETTE.ballPatch, 0.36)
-  ctx.lineWidth = seamShadow
-  for (const [, [x1, y1, x2, y2]] of seams) {
-    ctx.beginPath()
-    ctx.moveTo(x1, y1)
-    ctx.lineTo(x2, y2)
-    ctx.stroke()
-  }
-  ctx.strokeStyle = rgba(PALETTE.ballSeam, 0.72)
-  ctx.lineWidth = seamLight
-  for (const [, [x1, y1, x2, y2]] of seams) {
-    ctx.beginPath()
-    ctx.moveTo(x1, y1)
-    ctx.lineTo(x2, y2)
-    ctx.stroke()
+
+  const paintLayer = (
+    key: string,
+    draw: (ctx: CanvasRenderingContext2D) => void,
+  ): void => {
+    const texture = scene.textures.createCanvas(key, size, size)
+    if (!texture) throw new Error('Não foi possível criar a textura da bola')
+    const ctx = texture.getContext()
+    ctx.clearRect(0, 0, size, size)
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    draw(ctx)
+    texture.refresh()
   }
 
-  // 4. Sombra global no canto inferior direito.
-  const shadeGrad = ctx.createRadialGradient(
-    cx + radiusPx * 0.78,
-    cy + radiusPx * 0.84,
-    radiusPx * 0.05,
-    cx + radiusPx * 0.62,
-    cy + radiusPx * 0.68,
-    radiusPx * 1.05,
-  )
-  shadeGrad.addColorStop(0, rgba(PALETTE.ballPatch, 0.17))
-  shadeGrad.addColorStop(0.62, rgba(PALETTE.ballPatch, 0.06))
-  shadeGrad.addColorStop(1, rgba(PALETTE.ballPatch, 0))
-  ctx.fillStyle = shadeGrad
-  ctx.fillRect(0, 0, size, size)
+  const clipBall = (ctx: CanvasRenderingContext2D): void => {
+    ctx.beginPath()
+    ctx.arc(cx, cy, radiusPx, 0, Math.PI * 2)
+    ctx.clip()
+  }
 
-  // 5. Vinheta de borda: dá volume à esfera, sem escurecer o brilho.
-  const rim = ctx.createRadialGradient(cx, cy, radiusPx * 0.58, cx, cy, radiusPx)
-  rim.addColorStop(0, rgba(PALETTE.ballPatch, 0))
-  rim.addColorStop(0.9, rgba(PALETTE.ballPatch, 0.008))
-  rim.addColorStop(1, rgba(PALETTE.ballPatch, 0.06))
-  ctx.fillStyle = rim
-  ctx.fillRect(0, 0, size, size)
+  // 1. Corpo: gradiente radial estático (luz no canto superior esquerdo).
+  paintLayer(keys.base, (ctx) => {
+    ctx.save()
+    clipBall(ctx)
+    const body = ctx.createRadialGradient(
+      cx - radiusPx * 0.42,
+      cy - radiusPx * 0.46,
+      radiusPx * 0.08,
+      cx + radiusPx * 0.02,
+      cy + radiusPx * 0.06,
+      radiusPx * 1.12,
+    )
+    const baseLight = lerpColor(PALETTE.ballBase, 0xffffff, 0.55)
+    const baseDeep = lerpColor(PALETTE.ballBase, PALETTE.ballSeam, 0.3)
+    body.addColorStop(0, `rgb(${baseLight[0]}, ${baseLight[1]}, ${baseLight[2]})`)
+    body.addColorStop(0.58, rgba(PALETTE.ballBase, 1))
+    body.addColorStop(1, `rgb(${baseDeep[0]}, ${baseDeep[1]}, ${baseDeep[2]})`)
+    ctx.fillStyle = body
+    ctx.fillRect(0, 0, size, size)
+    ctx.restore()
+  })
 
-  // 6. Brilho suave no canto superior esquerdo.
-  const shine = ctx.createRadialGradient(
-    cx - radiusPx * 0.36,
-    cy - radiusPx * 0.4,
-    0,
-    cx - radiusPx * 0.36,
-    cy - radiusPx * 0.4,
-    radiusPx * 0.5,
-  )
-  shine.addColorStop(0, 'rgba(255, 255, 255, 0.55)')
-  shine.addColorStop(0.4, 'rgba(255, 255, 255, 0.18)')
-  shine.addColorStop(1, 'rgba(255, 255, 255, 0)')
-  ctx.fillStyle = shine
-  ctx.fillRect(0, 0, size, size)
+  // 2. Padrão: faces visíveis e costuras. Esta é a camada que gira.
+  paintLayer(keys.pattern, (ctx) => {
+    ctx.save()
+    clipBall(ctx)
+    for (const face of projected) drawFace(ctx, face)
 
-  // 7. Fio de luz na borda superior esquerda (leitura contra o céu).
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.42)'
-  ctx.lineWidth = Math.max(1, radiusPx * 0.028)
-  ctx.beginPath()
-  ctx.arc(cx, cy, radiusPx * 0.915, Math.PI * 1.04, Math.PI * 1.46)
-  ctx.stroke()
+    ctx.strokeStyle = rgba(PALETTE.ballPatch, 0.36)
+    ctx.lineWidth = seamShadow
+    for (const [, [x1, y1, x2, y2]] of seams) {
+      ctx.beginPath()
+      ctx.moveTo(x1, y1)
+      ctx.lineTo(x2, y2)
+      ctx.stroke()
+    }
+    ctx.strokeStyle = rgba(PALETTE.ballSeam, 0.72)
+    ctx.lineWidth = seamLight
+    for (const [, [x1, y1, x2, y2]] of seams) {
+      ctx.beginPath()
+      ctx.moveTo(x1, y1)
+      ctx.lineTo(x2, y2)
+      ctx.stroke()
+    }
+    ctx.restore()
+  })
 
-  ctx.restore()
+  // 3. Acabamento: sombra, vinheta, brilho e fio de luz, tudo estático.
+  paintLayer(keys.top, (ctx) => {
+    ctx.save()
+    clipBall(ctx)
 
-  // 8. Contorno escuro por cima de tudo (fora do clip para o traço inteiro).
-  ctx.strokeStyle = rgba(PALETTE.ink, 0.9)
-  ctx.lineWidth = Math.max(1.5, radius * 0.055) * SUPERSAMPLE
-  ctx.beginPath()
-  ctx.arc(cx, cy, radiusPx, 0, Math.PI * 2)
-  ctx.stroke()
+    // Sombra global no canto inferior direito.
+    const shadeGrad = ctx.createRadialGradient(
+      cx + radiusPx * 0.78,
+      cy + radiusPx * 0.84,
+      radiusPx * 0.05,
+      cx + radiusPx * 0.62,
+      cy + radiusPx * 0.68,
+      radiusPx * 1.05,
+    )
+    shadeGrad.addColorStop(0, rgba(PALETTE.ballPatch, 0.17))
+    shadeGrad.addColorStop(0.62, rgba(PALETTE.ballPatch, 0.06))
+    shadeGrad.addColorStop(1, rgba(PALETTE.ballPatch, 0))
+    ctx.fillStyle = shadeGrad
+    ctx.fillRect(0, 0, size, size)
 
-  texture.refresh()
-  return key
+    // Vinheta de borda: dá volume à esfera, sem escurecer o brilho.
+    const rim = ctx.createRadialGradient(cx, cy, radiusPx * 0.58, cx, cy, radiusPx)
+    rim.addColorStop(0, rgba(PALETTE.ballPatch, 0))
+    rim.addColorStop(0.9, rgba(PALETTE.ballPatch, 0.008))
+    rim.addColorStop(1, rgba(PALETTE.ballPatch, 0.06))
+    ctx.fillStyle = rim
+    ctx.fillRect(0, 0, size, size)
+
+    // Brilho suave no canto superior esquerdo.
+    const shine = ctx.createRadialGradient(
+      cx - radiusPx * 0.36,
+      cy - radiusPx * 0.4,
+      0,
+      cx - radiusPx * 0.36,
+      cy - radiusPx * 0.4,
+      radiusPx * 0.5,
+    )
+    shine.addColorStop(0, 'rgba(255, 255, 255, 0.55)')
+    shine.addColorStop(0.4, 'rgba(255, 255, 255, 0.18)')
+    shine.addColorStop(1, 'rgba(255, 255, 255, 0)')
+    ctx.fillStyle = shine
+    ctx.fillRect(0, 0, size, size)
+
+    // Fio de luz na borda superior esquerda (leitura contra o céu).
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.42)'
+    ctx.lineWidth = Math.max(1, radiusPx * 0.028)
+    ctx.beginPath()
+    ctx.arc(cx, cy, radiusPx * 0.915, Math.PI * 1.04, Math.PI * 1.46)
+    ctx.stroke()
+
+    ctx.restore()
+
+    // Contorno escuro por cima de tudo (fora do clip para o traço inteiro).
+    ctx.strokeStyle = rgba(PALETTE.ink, 0.9)
+    ctx.lineWidth = Math.max(1.5, radius * 0.055) * SUPERSAMPLE
+    ctx.beginPath()
+    ctx.arc(cx, cy, radiusPx, 0, Math.PI * 2)
+    ctx.stroke()
+  })
+
+  return keys
 }
 
 /**
- * Cria a bola centrada na origem do container. O chamador posiciona o
- * container e aplica squash/stretch nele.
+ * Container da bola com as três camadas empilhadas. Só `pattern` gira; corpo e
+ * acabamento (sombra, brilho e contorno) ficam parados, então a luz não gira
+ * junto com os gomos. O chamador posiciona/escala o container e aplica
+ * squash/stretch nele sem tocar na rotação do padrão.
  */
-export function createBallView(
-  scene: Phaser.Scene,
-  radius: number,
-): Phaser.GameObjects.Container {
-  const key = ensureBallTexture(scene, radius)
-  const image = scene.add.image(0, 0, key).setScale(1 / SUPERSAMPLE)
-  return scene.add.container(0, 0, [image])
+export class BallView extends Phaser.GameObjects.Container {
+  /** Camada dos gomos e costuras; recebe a rotação visual da bola. */
+  readonly pattern: Phaser.GameObjects.Image
+
+  constructor(scene: Phaser.Scene, radius: number) {
+    const keys = ensureBallTextures(scene, radius)
+    const displayScale = 1 / SUPERSAMPLE
+    const base = scene.add.image(0, 0, keys.base).setScale(displayScale)
+    const pattern = scene.add.image(0, 0, keys.pattern).setScale(displayScale)
+    const top = scene.add.image(0, 0, keys.top).setScale(displayScale)
+    super(scene, 0, 0, [base, pattern, top])
+    this.pattern = pattern
+    scene.add.existing(this)
+  }
+}
+
+/** Cria a bola centrada na origem do container. */
+export function createBallView(scene: Phaser.Scene, radius: number): BallView {
+  return new BallView(scene, radius)
 }
 
 /** Variante opcional para telas de preview/dev. */
@@ -424,6 +481,8 @@ export function createBallPreview(
   x: number,
   y: number,
   radius: number,
-): Phaser.GameObjects.Container {
-  return createBallView(scene, radius).setPosition(x, y)
+): BallView {
+  const view = createBallView(scene, radius)
+  view.setPosition(x, y)
+  return view
 }

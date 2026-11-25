@@ -589,6 +589,51 @@ async function main() {
       return `Magnet ${magnet.remaining} ms · Power Kick ${kick.speed} u/s · streak ${streak.before}→${streak.after} · net intacta`
     })
 
+    await runStep('Bola: padrão gira e acabamento fica parado', async () => {
+      // A rotação é visual: o padrão (gomos) acompanha o vx; o container
+      // externo (squash), o glow e o marcador de Ponto Doce não podem girar.
+      // A cena já está com spawners e morte congelados pelo passo da barra.
+      const sample = async (vx, waitMs) => {
+        await page.evaluate((speed) => {
+          const scene = window.keepie.game.scene.getScene('Play')
+          scene.ball.x = 270
+          scene.ball.y = 700
+          scene.ball.vx = speed
+          scene.ball.vy = 0
+          scene.arcApexY = 700
+          scene.cameraY = 0
+          scene.cameras.main.setScroll(0, 0)
+          scene.ballSpin.angle = 0
+          scene.ballSpin.residual = 0
+          scene.ballArt.pattern.setRotation(0)
+        }, vx)
+        await sleep(waitMs)
+        return page.evaluate(() => {
+          const scene = window.keepie.game.scene.getScene('Play')
+          return {
+            pattern: scene.ballArt.pattern.rotation,
+            outer: scene.ballView.rotation,
+            glow: scene.ballView.list[0].rotation,
+            marker: scene.sweetMarker.rotation,
+          }
+        })
+      }
+
+      const right = await sample(600, 160)
+      if (!(right.pattern > 0.05)) {
+        throw new Error(`vx>0 não girou o padrão (${right.pattern.toFixed(3)} rad)`)
+      }
+      const left = await sample(-600, 160)
+      if (!(left.pattern < -0.05)) {
+        throw new Error(`vx<0 não girou o padrão (${left.pattern.toFixed(3)} rad)`)
+      }
+      if (left.outer !== 0) throw new Error(`container externo girou: ${left.outer}`)
+      if (left.glow !== 0) throw new Error(`glow girou junto: ${left.glow}`)
+      if (left.marker !== 0) throw new Error(`marcador girou junto: ${left.marker}`)
+
+      return `vx +600 → ${right.pattern.toFixed(2)} rad · vx −600 → ${left.pattern.toFixed(2)} rad · glow e marcador parados`
+    })
+
     await runStep('Console sem erros', async () => {
       await sleep(TIMEOUT.settle)
       if (consoleErrors.length > 0) {

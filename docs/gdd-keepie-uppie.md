@@ -109,7 +109,7 @@ Set piece a cada **400–600 m**, nunca antes de 100 m (primeiro em 200 m): mold
 - **Streak (combo de toques limpos):** chutes limpos consecutivos sobem multiplicador com **rótulos escalonados em EN** (padrão GOOD → SWEET → EXTREME do Icy Tower, nomes finais `[A Definir — tuning]`). No topo: **febre** — moedas valem dobrado por um tempo (padrão fever do Tiny Wings). Quebra em **whiff** (proposta base); se colisão com obstáculo também quebra = `[variante de tuning a testar]`.
 
 ### 3.9 Feedback e legibilidade (pilar 4)
-Nenhuma interação silenciosa: chute (som + squash proporcionais à força — fraco é leve, forte é pesado), desvio (traço + som), drenagem (deformação), estilhaço (partículas), powerup (anúncio + ícone de estado ativo), febre (mudança perceptível do estado). O degrau de ritmo também se anuncia (`FASTER FALLS`), para a dificuldade não parecer bug. Consumíveis têm anúncio e efeito próprios (`SAVED!`, `CHUTÃO!`, `STREAK SAFE`, chips de Magnet/Shield/Sweet). O Goal anuncia `GOAL!` com flash e burst, e o objetivo é lido antes de o jogador chegar. Tempo de leitura em toda ativação.
+Nenhuma interação silenciosa: chute (som + squash proporcionais à força — fraco é leve, forte é pesado), desvio (traço + som), drenagem (deformação), estilhaço (partículas), powerup (anúncio + ícone de estado ativo), febre (mudança perceptível do estado). A bola rola com o movimento e recebe o giro do chute — só o padrão gira; brilho e sombra ficam fixos (0.4.1). O degrau de ritmo também se anuncia (`FASTER FALLS`), para a dificuldade não parecer bug. Consumíveis têm anúncio e efeito próprios (`SAVED!`, `CHUTÃO!`, `STREAK SAFE`, chips de Magnet/Shield/Sweet). O Goal anuncia `GOAL!` com flash e burst, e o objetivo é lido antes de o jogador chegar. Tempo de leitura em toda ativação.
 
 ### 3.10 Casos de borda
 - Whiff com Aimed Shot armado → powerup **permanece armado**.
@@ -160,7 +160,7 @@ Modelo: **3 slots, sem duplicatas, com devolução ao pool**. Comprar adiciona a
 
 **Tema/mundo:** `[A Definir — Próximos Passos]`. Direção não-comprometida registrada: biomas por altitude (rua → telhados → céu → estratosfera), mudando MISTURA de obstáculos, nunca regras. Pergunta-chave: **qual é o cenário emocional?** (rua urbana brasileira nostálgica? céu onírico/abstrato? sátira esportiva?)
 
-**MVP1 visual:** backdrop único, **minimalismo geométrico** — formas simples de leitura instantânea, com a bola como exceção deliberada: uma **bola de futebol estilizada** (textura gerada a partir de um icosaedro truncado, contorno escuro e sombreado) para dar identidade ao jogo. Os obstáculos continuam silhuetas planas. Justificativa: restrição de arte zero + pilar de legibilidade; cores/símbolos redundantes (daltonismo de graça).
+**MVP1 visual:** backdrop único, **minimalismo geométrico** — formas simples de leitura instantânea, com a bola como exceção deliberada: uma **bola de futebol estilizada** (textura gerada a partir de um icosaedro truncado, contorno escuro e sombreado) para dar identidade ao jogo. A bola **gira livremente**: só o padrão dos gomos rola com o movimento horizontal e recebe o giro do chute; brilho, sombra e contorno ficam estáticos (0.4.1). Os obstáculos continuam silhuetas planas. Justificativa: restrição de arte zero + pilar de legibilidade; cores/símbolos redundantes (daltonismo de graça).
 
 **Áudio:** `[A Definir — Próximos Passos]`. Pergunta-chave: primeiro o vocabulário de feedback (chute/quique/estilhaço/moeda) ou tudo de uma vez? Música dinâmica é pós-MVP.
 
@@ -206,5 +206,11 @@ Save-AD · Time-Warp · biomas · multiball (se provar valor) · online (se mere
 | Consumíveis | Magnet (15 s), Power Kick (próximo chute 2750), Streak Saver (próximo whiff), Safety Net (passiva) |
 | Loja | 4 cards compactos; BACK corrigido (sem reabrir a loja no release) |
 | Docs | `docs/release/fix12-ativaveis-e-conteudo.md` · `docs/proposta-conteudo-0.3.md` |
+
+### Ciclo 0.4.1 — rotação livre da bola (implementado)
+| Bloco | Conteúdo |
+|---|---|
+| Visual | textura em 3 camadas (corpo, padrão, acabamento); só o padrão gira. Rolagem por `vx`, giro residual do chute (central = backspin), Aimed Shot e giro lento no título. Física e colisão inalteradas. |
+| Docs | `docs/release/fix14-rotacao-da-bola.md` |
 
 **Gate de validação:** o playtest do MVP1 decide tudo que vem depois — diversão se valida no jogável, não no documento.
