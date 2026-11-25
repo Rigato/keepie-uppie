@@ -10,13 +10,15 @@ import {
   type BallSpinState,
 } from '../core/ball-spin'
 import { difficultyStageAt, fallSpeedLimitAt } from '../core/difficulty'
-import { InteractiveSpawner } from '../core/interactive-spawner'
+import { InteractiveSpawner, interactiveRect } from '../core/interactive-spawner'
 import { computeKick, isInsideBall, type KickResult } from '../core/kick'
-import { ObstacleSpawner } from '../core/spawner'
+import { rectFromBounds, type SpawnRect } from '../core/spawn-layout'
+import { ObstacleSpawner, obstacleRect } from '../core/spawner'
 import { StreakTracker, labelForCount, type StreakLabel } from '../core/streak'
 import { consume, equippedIds } from '../core/shop'
 import {
   ACTIVATABLE_IDS,
+  nextMagnetEndsAt,
   type ActivatableId,
   type ConsumableId,
 } from '../core/consumables'
@@ -89,6 +91,8 @@ export class PlayScene extends Phaser.Scene {
   private aimedArmed = false
   private magnetEndsAt = 0
   private magnetHudAt = 0
+  /** Duração ativa do Magnet (15 s no pickup do mundo, 45 s no consumível). */
+  private magnetDurationMs: number = TUNING.powerup.magnetDurationMs
   private aiming = false
   private aimEndsAt = 0
   private aimPointer = { x: 0, y: 0 }
@@ -162,6 +166,7 @@ export class PlayScene extends Phaser.Scene {
     this.aimedArmed = false
     this.magnetEndsAt = 0
     this.magnetHudAt = 0
+    this.magnetDurationMs = TUNING.powerup.magnetDurationMs
     this.aiming = false
     this.aimEndsAt = 0
     this.streak.reset()
@@ -492,15 +497,36 @@ export class PlayScene extends Phaser.Scene {
     })
   }
 
+  /**
+   * Rects ocupados pelas entidades vivas (spent não colide mais). Alimenta os
+   * três spawners na ordem obstáculos → interativos → gols; cada lote acrescenta
+   * o que aceitou para os lotes seguintes verem.
+   */
+  private collectOccupied(): SpawnRect[] {
+    const out: SpawnRect[] = []
+    const add = (bounds: Phaser.Geom.Rectangle): void => {
+      if (bounds.width > 0 && bounds.height > 0) out.push(rectFromBounds(bounds))
+    }
+    for (const obstacle of this.obstacles) if (!obstacle.spent) add(obstacle.bounds)
+    for (const item of this.interactives) if (!item.spent) add(item.bounds)
+    for (const goal of this.goals) add(goal.bounds)
+    return out
+  }
+
   private updateObstacles(dt: number): void {
     const time = this.time.now
-    const specs = this.spawner.update({
-      cameraTop: this.cameraY,
-      meters: this.meters,
-      ballX: this.ball.x,
-    })
+    const occupied = this.collectOccupied()
+    const specs = this.spawner.update(
+      {
+        cameraTop: this.cameraY,
+        meters: this.meters,
+        ballX: this.ball.x,
+      },
+      occupied,
+    )
 
     for (const spec of specs) {
+      occupied.push(obstacleRect(spec))
       const obstacle = createObstacle(this, spec)
       if (obstacle) this.obstacles.push(obstacle)
     }
@@ -584,12 +610,17 @@ export class PlayScene extends Phaser.Scene {
   }
 
   private updateInteractives(dt: number): void {
-    const specs = this.interactiveSpawner.update({
-      cameraTop: this.cameraY,
-      meters: this.meters,
-    })
+    const occupied = this.collectOccupied()
+    const specs = this.interactiveSpawner.update(
+      {
+        cameraTop: this.cameraY,
+        meters: this.meters,
+      },
+      occupied,
+    )
 
     for (const spec of specs) {
+      occupied.push(interactiveRect(spec))
       const item = createInteractive(this, spec)
       if (item) this.interactives.push(item)
     }
@@ -620,12 +651,24 @@ export class PlayScene extends Phaser.Scene {
   }
 
   private updateGoals(dt: number): void {
-    const spec = this.goalSpawner.update({
-      cameraTop: this.cameraY,
-      meters: this.meters,
-      ballX: this.ball.x,
-    })
-    if (spec) this.goals.push(createGoal(this, spec))
+    const occupied = this.collectOccupied()
+    const spec = this.goalSpawner.update(
+      {
+        cameraTop: this.cameraY,
+        meters: this.meters,
+        ballX: this.ball.x,
+      },
+      occupied,
+    )
+    if (spec) {
+      occupied.push({
+        cx: spec.x,
+        cy: spec.y,
+        width: spec.width,
+        height: spec.height,
+      })
+      this.goals.push(createGoal(this, spec))
+    }
 
     for (let i = this.goals.length - 1; i >= 0; i -= 1) {
       const goal = this.goals[i]
@@ -768,11 +811,7 @@ export class PlayScene extends Phaser.Scene {
 
       if (now >= this.magnetHudAt) {
         this.magnetHudAt = now + 100
-        this.powerupHud.setMagnet(
-          true,
-          this.magnetEndsAt - now,
-          TUNING.powerup.magnetDurationMs,
-        )
+        this.powerupHud.setMagnet(true, this.magnetEndsAt - now, this.magnetDurationMs)
       }
       return
     }
@@ -780,7 +819,7 @@ export class PlayScene extends Phaser.Scene {
     if (this.magnetEndsAt !== 0) {
       this.magnetEndsAt = 0
       this.magnetAura.setVisible(false)
-      this.powerupHud.setMagnet(false, 0, TUNING.powerup.magnetDurationMs)
+      this.powerupHud.setMagnet(false, 0, this.magnetDurationMs)
     }
   }
 
@@ -883,15 +922,14 @@ export class PlayScene extends Phaser.Scene {
     this.hint = undefined
   }
 
-  private activateMagnet(): void {
-    this.magnetEndsAt = this.time.now + TUNING.powerup.magnetDurationMs
+  private activateMagnet(duration: number = TUNING.powerup.magnetDurationMs): void {
+    const endsAt = nextMagnetEndsAt(this.time.now, this.magnetEndsAt, duration)
+    if (endsAt === this.magnetEndsAt) return
+    this.magnetDurationMs = duration
+    this.magnetEndsAt = endsAt
     this.magnetHudAt = 0
     this.magnetAura.setVisible(true)
-    this.powerupHud.setMagnet(
-      true,
-      TUNING.powerup.magnetDurationMs,
-      TUNING.powerup.magnetDurationMs,
-    )
+    this.powerupHud.setMagnet(true, duration, duration)
   }
 
   private activateShield(): void {
@@ -1024,7 +1062,7 @@ export class PlayScene extends Phaser.Scene {
 
     switch (id) {
       case 'magnet':
-        this.activateMagnet()
+        this.activateMagnet(TUNING.consumable.magnetDurationMs)
         this.popLabel('MAGNET!', CSS_PALETTE.inkDim, true, 92)
         audio.play('pickup')
         break
@@ -1429,7 +1467,7 @@ export class PlayScene extends Phaser.Scene {
     this.magnetEndsAt = 0
     this.aimUi.hide()
     this.powerupHud.setAimed(false)
-    this.powerupHud.setMagnet(false, 0, TUNING.powerup.magnetDurationMs)
+    this.powerupHud.setMagnet(false, 0, this.magnetDurationMs)
     this.powerupHud.setShield(false, 0, TUNING.powerup.shieldDurationMs)
     this.powerupHud.setSweet(false, 0, TUNING.powerup.sweetDurationMs)
     this.magnetAura.setVisible(false)

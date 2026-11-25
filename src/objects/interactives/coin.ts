@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
+import { coinRadiusFor, coinValueFor } from '../../core/coin-patterns'
 import { PALETTE } from '../../game/palette'
-import { TUNING } from '../../game/tuning'
 import type { InteractiveContact, InteractiveFactory } from './types'
 
 /** Interativos ficam na frente do cenário, atrás apenas da bola e do HUD. */
@@ -13,6 +13,18 @@ const SHIMMER_MS = 1050
 const SHIMMER_MIN_SCALE_X = 0.82
 const SHIMMER_MAX_DELAY_MS = 900
 
+/** Halo da especial: pulsa em alpha e escala, independente do shimmer em X. */
+const HALO_ALPHA_MIN = 0.12
+const HALO_ALPHA_MAX = 0.38
+const HALO_SCALE_MIN = 0.88
+const HALO_SCALE_MAX = 1.16
+const HALO_MS = 720
+
+/** Estrela da especial: 5 pontas externas e 5 internas, apontando para cima. */
+const STAR_POINTS = 10
+const STAR_OUTER = 0.64
+const STAR_INNER = 0.28
+
 /** Pop: quantidade de fragmentos, distância máxima e duração. */
 const POP_MIN = 4
 const POP_MAX = 6
@@ -24,10 +36,14 @@ const CONTACT_STRENGTH = 1
 
 /**
  * Moeda: alvo circular que entrega `coinValue` e some no primeiro contato.
- * A hitbox é o círculo de raio `coinRadius` centrado em (spec.x, spec.y).
+ * A hitbox é o círculo de raio `coinRadiusFor(special)` centrado em (spec.x, spec.y).
+ * A especial é reconhecível pela forma (disco maior + estrela + halo pulsante),
+ * não só pela cor; o ímã a atrai exatamente como as comuns.
  */
 export const createCoin: InteractiveFactory = (scene, spec) => {
-  const radius = TUNING.collect.coinRadius
+  const special = spec.special === true
+  const radius = coinRadiusFor(special)
+  const value = coinValueFor(special)
   const variation = Math.min(1, Math.max(0, spec.variation))
 
   // Posição mutável: o Magnet puxa a moeda sem mexer na cena.
@@ -35,15 +51,52 @@ export const createCoin: InteractiveFactory = (scene, spec) => {
   let y = spec.y
 
   const root = scene.add.container(x, y).setDepth(DEPTH)
+  let halo: Phaser.GameObjects.Arc | null = null
 
-  // Corpo: disco dourado, aro interno mais escuro e brilho branco no canto.
+  if (special) {
+    halo = scene.add
+      .circle(0, 0, radius * 1.35, PALETTE.coinSpecialGlow, HALO_ALPHA_MIN)
+      .setStrokeStyle(1.5, PALETTE.coinSpecialGlow, 0.5)
+    root.add(halo)
+    scene.tweens.add({
+      targets: halo,
+      alpha: { from: HALO_ALPHA_MIN, to: HALO_ALPHA_MAX },
+      scale: { from: HALO_SCALE_MIN, to: HALO_SCALE_MAX },
+      duration: HALO_MS,
+      delay: variation * HALO_MS,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+  }
+
+  // Corpo: disco dourado com aro interno e brilho (ou disco laranja com
+  // estrela dourada na especial).
   const visual = scene.add.graphics()
-  visual.fillStyle(PALETTE.coin, 1)
-  visual.fillCircle(0, 0, radius)
-  visual.lineStyle(Math.max(1.5, radius * 0.12), PALETTE.ballShade, 0.9)
-  visual.strokeCircle(0, 0, radius * 0.66)
-  visual.fillStyle(0xffffff, 0.6)
-  visual.fillCircle(-radius * 0.32, -radius * 0.34, radius * 0.2)
+  if (special) {
+    visual.fillStyle(PALETTE.coinSpecial, 1)
+    visual.fillCircle(0, 0, radius)
+    visual.lineStyle(Math.max(2, radius * 0.14), PALETTE.ballShade, 0.95)
+    visual.strokeCircle(0, 0, radius * 0.93)
+    visual.lineStyle(1.5, PALETTE.coinSpecialGlow, 0.75)
+    visual.strokeCircle(0, 0, radius * 0.76)
+
+    const points: Phaser.Math.Vector2[] = []
+    for (let i = 0; i < STAR_POINTS; i += 1) {
+      const r = radius * (i % 2 === 0 ? STAR_OUTER : STAR_INNER)
+      const angle = -Math.PI / 2 + (i * Math.PI) / (STAR_POINTS / 2)
+      points.push(new Phaser.Math.Vector2(Math.cos(angle) * r, Math.sin(angle) * r))
+    }
+    visual.fillStyle(PALETTE.coinSpecialGlow, 1)
+    visual.fillPoints(points, true)
+  } else {
+    visual.fillStyle(PALETTE.coin, 1)
+    visual.fillCircle(0, 0, radius)
+    visual.lineStyle(Math.max(1.5, radius * 0.12), PALETTE.ballShade, 0.9)
+    visual.strokeCircle(0, 0, radius * 0.66)
+    visual.fillStyle(0xffffff, 0.6)
+    visual.fillCircle(-radius * 0.32, -radius * 0.34, radius * 0.2)
+  }
   root.add(visual)
 
   // Shimmer lento em X; o atraso vem da variação para as moedas não pulsarem juntas.
@@ -68,11 +121,12 @@ export const createCoin: InteractiveFactory = (scene, spec) => {
   function spawnFragments(centerX: number, centerY: number): void {
     const count = POP_MIN + Math.round(variation * (POP_MAX - POP_MIN))
     const startAngle = variation * Math.PI * 2
+    const color = special ? PALETTE.coinSpecial : PALETTE.coin
 
     for (let i = 0; i < count; i += 1) {
       const angle = startAngle + (i / count) * Math.PI * 2
       const piece = scene.add
-        .circle(centerX, centerY, Math.max(1.5, radius * 0.16), PALETTE.coin, 0.95)
+        .circle(centerX, centerY, Math.max(1.5, radius * 0.16), color, 0.95)
         .setDepth(FRAGMENT_DEPTH)
       fragments.add(piece)
 
@@ -104,7 +158,7 @@ export const createCoin: InteractiveFactory = (scene, spec) => {
 
     return {
       result: 'collect',
-      coins: TUNING.collect.coinValue,
+      coins: value,
       point: { x, y },
       strength: CONTACT_STRENGTH,
     }
@@ -134,6 +188,7 @@ export const createCoin: InteractiveFactory = (scene, spec) => {
     destroyed = true
 
     scene.tweens.killTweensOf(root)
+    if (halo) scene.tweens.killTweensOf(halo)
     if (root.active) root.destroy(true)
 
     for (const piece of fragments) {

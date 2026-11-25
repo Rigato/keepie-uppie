@@ -72,7 +72,7 @@ export const createRamp: ObstacleFactory = (scene, spec) => {
   bar.fillCircle(-halfW + radius + 2, -halfH + height * 0.3, RIVET_RADIUS)
   bar.fillCircle(halfW - radius - 2, -halfH + height * 0.3, RIVET_RADIUS)
 
-  // Vinco escuro na base e contorno: separam a ramp da barra "hard" chapada.
+  // Vinco escuro na base e contorno: separam a ramp de uma barra chapada.
   bar.fillStyle(shade(PALETTE.ramp, 0.48), UNDERSIDE_ALPHA)
   bar.fillRoundedRect(
     -halfW + radius,

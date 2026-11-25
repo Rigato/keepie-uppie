@@ -3,7 +3,6 @@ import type { ObstacleKind, ObstacleSpawn } from '../../game/contracts'
 import { createBirds } from './birds'
 import { createBreakable } from './breakable'
 import { createBumper } from './bumper'
-import { createHard } from './hard'
 import { createRamp } from './ramp'
 import { createSoft } from './soft'
 import type { ObstacleFactory, ObstacleInstance } from './types'
@@ -13,7 +12,6 @@ import type { ObstacleFactory, ObstacleInstance } from './types'
  * conhece este mapa. Kinds ainda sem fábrica são ignorados com segurança.
  */
 const FACTORIES: Partial<Record<ObstacleKind, ObstacleFactory>> = {
-  hard: createHard,
   soft: createSoft,
   breakable: createBreakable,
   bird: createBirds,

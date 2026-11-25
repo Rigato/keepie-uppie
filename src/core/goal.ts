@@ -1,4 +1,5 @@
 import { TUNING } from '../game/tuning'
+import { resolvePlacement, spawnRect, type SpawnRect } from './spawn-layout'
 import { mulberry32 } from './spawner'
 
 export interface GoalSpawn {
@@ -51,14 +52,26 @@ export class GoalSpawner {
     this.nextAt = TUNING.goal.firstAtMeters
   }
 
-  update(input: GoalSpawnInput): GoalSpawn | null {
+  /** `occupied` são os rects vivos; um gol sem espaço é pulado, sem forçar. */
+  update(input: GoalSpawnInput, occupied: readonly SpawnRect[] = []): GoalSpawn | null {
     if (input.meters < this.nextAt) return null
 
     const spawn = this.make(input)
     // O próximo marco conta a partir de onde o gol nasceu: uma atualização
     // esparsa nunca despeja vários gols em sequência nos frames seguintes.
+    // Mesmo que este gol não caiba, o marco continua contando.
     this.nextAt = input.meters + this.gapMeters()
-    return spawn
+
+    const resolved = resolvePlacement({
+      rect: spawnRect(spawn.x, spawn.y, spawn.width, spawn.height),
+      occupied,
+      rng: this.rng,
+      world: TUNING.world,
+      gap: TUNING.spawn.overlapGap,
+      attempts: TUNING.spawn.placementAttempts,
+      levels: TUNING.spawn.placementLevels,
+    })
+    return resolved ? { ...spawn, x: resolved.cx, y: resolved.cy } : null
   }
 
   private gapMeters(): number {

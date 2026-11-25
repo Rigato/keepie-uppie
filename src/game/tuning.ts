@@ -161,9 +161,6 @@ export const TUNING = {
   },
 
   obstacle: {
-    /** Hard mais estreito que os demais: refletir para baixo é punitivo. */
-    hardWidth: 100,
-    hardHeight: 14,
     softWidth: 152,
     softHeight: 18,
     breakableWidth: 106,
@@ -197,10 +194,15 @@ export const TUNING = {
   spawn: {
     /** Primeiro evento só depois de o jogador começar a subir. */
     firstAtMeters: 28,
-    /** Distância entre eventos no início e no fim da curva (densidade cresce). */
-    startStepMeters: 190,
-    minStepMeters: 115,
-    stepAtMeters: 1200,
+    /**
+     * Passo entre obstáculos suavizado por smoothstep de 0 a `stepAtMeters`.
+     * 200 m no início → 176.7 em 500 → 133.3 em 1000 → 110 m em 2000.
+     * A curva contínua substitui o antigo degrau em 1200 m e evita "paredes"
+     * de densidade no meio da run. [TESTE]
+     */
+    startStepMeters: 200,
+    minStepMeters: 110,
+    stepAtMeters: 1500,
     /** Obstáculo nasce acima do topo da câmera. */
     aboveTop: 150,
     jitterY: 120,
@@ -212,21 +214,44 @@ export const TUNING = {
     birdBandTop: 140,
     birdBandHeight: 180,
     /**
-     * Pesos por faixa de altitude: [hard, soft, breakable, bird, bumper, ramp].
-     * Bumper e Ramp só ganham peso depois de 300 m: até lá o jogador aprende
-     * o vocabulário base. Os pesos somam 100 em cada faixa. [TESTE]
+     * Folga da caixa de layout do bando: a formação em V espalha companheiros
+     * ~18 u em x (atrás do líder) e em y (asas/fileiras). [TESTE]
+     */
+    birdFlockSpread: 18,
+    /**
+     * Folga mínima entre retângulos de spawn (borda a borda) e limites de
+     * tentativas do layout. 16 laterais + 4 recuos verticais dão espaço
+     * suficiente sem custo perceptível por frame. [TESTE]
+     */
+    overlapGap: 12,
+    placementAttempts: 16,
+    placementLevels: 4,
+    /**
+     * Âncoras do mix de obstáculos, interpoladas com smoothstep entre as
+     * vizinhas (sem faixas com degrau). Ordem dos pesos:
+     * [soft, breakable, bird, bumper, ramp]. Cada âncora soma 100.
+     * Bumper/ramp entram com peso 0 em 0 e 300 m e crescem suavemente depois
+     * disso; o hard foi removido e os demais pesos foram renormalizados. [TESTE]
      */
     mix: [
-      { maxMeters: 120, weights: [55, 30, 15, 0, 0, 0] },
-      { maxMeters: 300, weights: [40, 25, 20, 15, 0, 0] },
-      { maxMeters: 600, weights: [28, 18, 20, 17, 10, 7] },
-      { maxMeters: 1_000_000, weights: [20, 14, 18, 20, 15, 13] },
+      { meters: 0, weights: [67, 33, 0, 0, 0] },
+      { meters: 300, weights: [42, 33, 25, 0, 0] },
+      { meters: 600, weights: [25, 28, 24, 14, 9] },
+      { meters: 1200, weights: [17, 23, 25, 19, 16] },
     ],
   },
 
   collect: {
     coinRadius: 13,
     coinValue: 1,
+    /**
+     * Moeda especial: maior, vale 5 (10 na febre) e só nasce a partir de
+     * `coinSpecialMinMeters`. [TESTE]
+     */
+    coinSpecialRadius: 18,
+    coinSpecialValue: 5,
+    /** [CONFIRMAR] com o usuário: default proposto 400 m. [TESTE] */
+    coinSpecialMinMeters: 400,
     ringRadius: 50,
     ringThickness: 8,
     /** Fração do raio da argola que conta como "passou por dentro". */
@@ -242,20 +267,45 @@ export const TUNING = {
 
   interactive: {
     firstAtMeters: 18,
-    startStepMeters: 62,
-    minStepMeters: 34,
-    stepAtMeters: 900,
+    /**
+     * Passo dos interativos também é suave: 70 m em 0 → 57.2 em 500 →
+     * 38.5 em 1000 → 36 m em 2000 (smoothstep até 1200 m). [TESTE]
+     */
+    startStepMeters: 70,
+    minStepMeters: 36,
+    stepAtMeters: 1200,
     /** Interativos nascem acima do topo da câmera. */
     aboveTop: 130,
     jitterY: 170,
-    /** Trilha de moedas: quantidade, espaçamento vertical e arco lateral. */
-    coinTrail: 6,
+    /** Passo base e arco usados por TODOS os padrões de `coin-patterns.ts`. [TESTE] */
     coinSpacing: 44,
     coinArc: 28,
     edgeMargin: 44,
     maxPerUpdate: 2,
-    /** Pesos: moeda, argola, mola, magnet, aimed, shield, sweet. */
-    weights: [50, 18, 10, 9, 5, 4, 4],
+    /**
+     * Pesos dos padrões de spawn de moedas, na ordem do sorteio.
+     * Âncoras fixas: sem gating por altitude; a estrela é a mais rara. [TESTE]
+     */
+    coinPatterns: [
+      { id: 'trail', weight: 34 },
+      { id: 'row', weight: 18 },
+      { id: 'square', weight: 16 },
+      { id: 'zigzag', weight: 16 },
+      { id: 'diamond', weight: 9 },
+      { id: 'star', weight: 7 },
+    ],
+    /**
+     * Pesos FIXOS dos não-moedas: argola, mola, magnet, aimed, shield, sweet.
+     * A fatia da moeda vem de `coinWeightAnchors` e cresce com a altitude;
+     * `pickKind` junta os dois vetores e normaliza no sorteio. [TESTE]
+     */
+    weights: [18, 10, 9, 5, 4, 4],
+    /** Peso da moeda: 50 em 0 m → 55 em 600 → 60 em 1500, com smoothstep. [TESTE] */
+    coinWeightAnchors: [
+      { meters: 0, weight: 50 },
+      { meters: 600, weight: 55 },
+      { meters: 1500, weight: 60 },
+    ],
   },
 
   powerup: {
@@ -271,7 +321,10 @@ export const TUNING = {
     /** Faixa de velocidade do tiro mirado, fora da faixa normal (recalibrada com g=1300). */
     aimMinSpeed: 1200,
     aimMaxSpeed: 3000,
-    /** Duração do Magnet. [TESTE] */
+    /**
+     * Duração do Magnet do MUNDO (pickup). O consumível ativável da barra usa
+     * `TUNING.consumable.magnetDurationMs` — são durações distintas. [TESTE]
+     */
     magnetDurationMs: 15000,
     /** Raio de puxão (−20% da calibração anterior); a aura acompanha. [TESTE] */
     magnetRadius: 144,
@@ -292,6 +345,12 @@ export const TUNING = {
   },
 
   consumable: {
+    /**
+     * Duração do Magnet da BARRA (consumível ativável). Diferente do pickup do
+     * mundo (`powerup.magnetDurationMs`, 15 s): o HUD mostra a duração ativa.
+     * [TESTE]
+     */
+    magnetDurationMs: 45000,
     /**
      * Impulso vertical da rede de proteção ao salvar a bola na linha de morte.
      * Modesto de propósito: é uma segunda chance, não um atalho de altitude. [TESTE]

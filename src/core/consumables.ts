@@ -34,7 +34,8 @@ export const CONSUMABLES: Record<ConsumableId, ConsumableDef> = {
   magnet: {
     id: 'magnet',
     name: 'MAGNET',
-    description: 'Tap its icon in-game to attract coins for 15s.',
+    /** 45 s = `TUNING.consumable.magnetDurationMs` (o pickup do mundo é 15 s). */
+    description: 'Tap its icon in-game to attract coins for 45s.',
     price: 30,
     passive: false,
   },
@@ -74,4 +75,17 @@ export function isActivatable(id: ConsumableId): id is ActivatableId {
 /** Inventário vazio, sempre uma cópia nova. */
 export function emptyInventory(): Record<ConsumableId, number> {
   return { net: 0, magnet: 0, chutao: 0, streak: 0 }
+}
+
+/**
+ * Fim do Magnet depois de ativar uma fonte. Nunca encurta um efeito ativo:
+ * o pickup de 15 s não derruba o consumível de 45 s, mas o consumível estende
+ * o pickup. Reativar a mesma fonte renova a partir de `now`.
+ */
+export function nextMagnetEndsAt(
+  now: number,
+  currentEndsAt: number,
+  durationMs: number,
+): number {
+  return Math.max(currentEndsAt, now + durationMs)
 }

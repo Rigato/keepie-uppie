@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { smoothstep } from '../src/core/math'
 import { ObstacleSpawner } from '../src/core/spawner'
 import { TUNING } from '../src/game/tuning'
 import type { ObstacleSpawn } from '../src/game/contracts'
@@ -98,5 +99,45 @@ describe('ObstacleSpawner', () => {
     const spawner = new ObstacleSpawner(3)
     const specs = spawner.update({ cameraTop: -10_000, meters: 10_000, ballX: 270 })
     expect(specs.length).toBeLessThanOrEqual(TUNING.spawn.maxPerUpdate)
+  })
+
+  it('o ObstacleKind não inclui mais o hard', () => {
+    for (let seed = 1; seed < 12; seed += 1) {
+      for (const spec of run(new ObstacleSpawner(seed), 2400)) {
+        expect(spec.kind).not.toBe('hard')
+      }
+    }
+  })
+
+  it('o passo segue smoothstep contínuo (0/500/1000/2000 m)', () => {
+    const { startStepMeters, minStepMeters, stepAtMeters } = TUNING.spawn
+    const stepAt = (meters: number): number =>
+      startStepMeters +
+      (minStepMeters - startStepMeters) * smoothstep(0, stepAtMeters, meters)
+    expect(stepAt(0)).toBeCloseTo(200, 5)
+    expect(stepAt(500)).toBeCloseTo(176.67, 1)
+    expect(stepAt(1000)).toBeCloseTo(133.33, 1)
+    expect(stepAt(2000)).toBeCloseTo(110, 5)
+    // Sem degrau: a diferença em 1 m é pequena mesmo cruzando uma âncora.
+    expect(Math.abs(stepAt(599) - stepAt(601))).toBeLessThan(0.5)
+  })
+
+  it('Bumper e Ramp entram suavemente depois de 300 m, sem salto', () => {
+    const mixAt = (meters: number, index: number): number => {
+      const anchors = TUNING.spawn.mix
+      for (let i = 1; i < anchors.length; i += 1) {
+        const a = anchors[i - 1]!
+        const b = anchors[i]!
+        if (meters > b.meters) continue
+        const t = smoothstep(0, 1, (meters - a.meters) / (b.meters - a.meters))
+        return a.weights[index]! + (b.weights[index]! - a.weights[index]!) * t
+      }
+      return anchors[anchors.length - 1]!.weights[index]!
+    }
+    expect(mixAt(299, 3)).toBe(0)
+    expect(mixAt(300, 3)).toBe(0)
+    expect(mixAt(450, 3)).toBeGreaterThan(0)
+    expect(Math.abs(mixAt(599, 3) - mixAt(601, 3))).toBeLessThan(0.2)
+    expect(Math.abs(mixAt(1199, 4) - mixAt(1201, 4))).toBeLessThan(0.2)
   })
 })

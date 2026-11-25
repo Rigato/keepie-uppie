@@ -11,7 +11,6 @@ export interface BallLike extends Vec2 {
 }
 
 export type EntityKind =
-  | 'hard'
   | 'soft'
   | 'breakable'
   | 'bird'
@@ -27,7 +26,7 @@ export type EntityKind =
   | 'goal'
 
 /** Obstáculos que o spawner coloca no caminho. */
-export type ObstacleKind = 'hard' | 'soft' | 'breakable' | 'bird' | 'bumper' | 'ramp'
+export type ObstacleKind = 'soft' | 'breakable' | 'bird' | 'bumper' | 'ramp'
 
 /** Interativos do jogo. */
 export type InteractiveKind =
@@ -45,6 +44,14 @@ export interface InteractiveSpawn {
   y: number
   /** Variação visual determinística (0..1). */
   variation: number
+  /** Só em moedas: vale `coinSpecialValue` e tem desenho próprio. */
+  special?: boolean
+  /**
+   * Só em moedas: id incremental do conjunto (um padrão inteiro = um id).
+   * Serve para agrupar/testar e não afeta gameplay. Incrementa apenas quando o
+   * conjunto é aceito pelo layout.
+   */
+  setId?: number
 }
 
 /**

@@ -1,6 +1,7 @@
 import type { ObstacleKind, ObstacleSpawn } from '../game/contracts'
 import { TUNING } from '../game/tuning'
-import { clamp, lerp } from './math'
+import { lerp, sampleAnchors, smoothstep, type ScalarAnchor } from './math'
+import { isFree, resolvePlacement, spawnRect, type SpawnRect } from './spawn-layout'
 
 /** PRNG determinístico e barato: mesma seed = mesma sequência. */
 export function mulberry32(seed: number): () => number {
@@ -24,7 +25,6 @@ export interface SpawnInput {
 }
 
 const KIND_ORDER: readonly ObstacleKind[] = [
-  'hard',
   'soft',
   'breakable',
   'bird',
@@ -40,8 +40,6 @@ interface Dimensions {
 function dimensionsFor(kind: ObstacleKind): Dimensions {
   const o = TUNING.obstacle
   switch (kind) {
-    case 'hard':
-      return { width: o.hardWidth, height: o.hardHeight }
     case 'soft':
       return { width: o.softWidth, height: o.softHeight }
     case 'breakable':
@@ -54,6 +52,37 @@ function dimensionsFor(kind: ObstacleKind): Dimensions {
       return { width: o.rampWidth, height: o.rampHeight }
   }
 }
+
+/**
+ * Retângulo de layout de um obstáculo já colocado. Usa as dimensões do kind,
+ * com duas exceções geométricas (só para o layout, nunca para a hitbox):
+ *  - birds: a formação em V se espalha em y além de um pássaro isolado;
+ *  - ramp: a barra é rotacionada, então sua AABB é maior que `rampHeight`.
+ */
+export function obstacleRect(spec: ObstacleSpawn): SpawnRect {
+  const { width, height } = dimensionsFor(spec.kind)
+  if (spec.kind === 'bird') {
+    // Formação em V: 2 fileiras atrás do líder e asas acima/abaixo. A folga
+    // `birdFlockSpread` cobre a profundidade em x e o espalhamento em y.
+    const spread = TUNING.spawn.birdFlockSpread
+    return spawnRect(spec.x, spec.y, width + 2 * spread, height + 4 * spread)
+  }
+  if (spec.kind === 'ramp') {
+    const angle = (TUNING.obstacle.rampAngleDeg * Math.PI) / 180
+    const cos = Math.abs(Math.cos(angle))
+    const sin = Math.abs(Math.sin(angle))
+    return spawnRect(spec.x, spec.y, width * cos + height * sin, width * sin + height * cos)
+  }
+  return spawnRect(spec.x, spec.y, width, height)
+}
+
+/** Série temporal de pesos por kind, derivada das âncoras de `TUNING.spawn.mix`. */
+const MIX_SERIES: readonly (readonly ScalarAnchor[])[] = KIND_ORDER.map((_, index) =>
+  TUNING.spawn.mix.map((anchor) => ({
+    meters: anchor.meters,
+    value: anchor.weights[index] ?? 0,
+  })),
+)
 
 /**
  * Spawner procedural por altitude (a pergunta do GDD: densidade por metro, não
@@ -73,38 +102,46 @@ export class ObstacleSpawner {
     this.nextAt = TUNING.spawn.firstAtMeters
   }
 
-  update(input: SpawnInput): ObstacleSpawn[] {
+  /**
+   * `occupied` são os rects vivos (e os já aceitos pelo chamador no frame).
+   * Cada lote também evita sobrepor a si mesmo; specs sem lugar são pulados.
+   */
+  update(input: SpawnInput, occupied: readonly SpawnRect[] = []): ObstacleSpawn[] {
     const out: ObstacleSpawn[] = []
+    const local = [...occupied]
     let guard = 0
     while (input.meters >= this.nextAt && guard < TUNING.spawn.maxPerUpdate) {
-      out.push(this.make(input))
+      const spec = this.make(input, local)
+      if (spec) {
+        out.push(spec)
+        local.push(obstacleRect(spec))
+      }
       this.nextAt += this.step(input.meters)
       guard += 1
     }
     return out
   }
 
-  /** Distância até o próximo evento; encurta conforme a altitude sobe. */
+  /** Distância até o próximo evento; encurta suavemente conforme a altitude sobe. */
   private step(meters: number): number {
-    const t = clamp(meters / TUNING.spawn.stepAtMeters, 0, 1)
+    const t = smoothstep(0, TUNING.spawn.stepAtMeters, meters)
     return lerp(TUNING.spawn.startStepMeters, TUNING.spawn.minStepMeters, t)
   }
 
+  /** Pesos interpolados entre âncoras: nenhuma faixa com salto de mix. */
   private pickKind(meters: number): ObstacleKind {
-    const bands = TUNING.spawn.mix
-    const band = bands.find((entry) => meters <= entry.maxMeters) ?? bands[bands.length - 1]
-    const weights = band.weights
+    const weights = MIX_SERIES.map((series) => sampleAnchors(series, meters))
     const total = weights.reduce<number>((sum, weight) => sum + weight, 0)
     let roll = this.rng() * total
 
     for (let i = 0; i < KIND_ORDER.length; i += 1) {
       roll -= weights[i] ?? 0
-      if (roll <= 0) return KIND_ORDER[i] ?? 'hard'
+      if (roll <= 0) return KIND_ORDER[i] ?? 'soft'
     }
-    return 'hard'
+    return 'soft'
   }
 
-  private make(input: SpawnInput): ObstacleSpawn {
+  private make(input: SpawnInput, occupied: readonly SpawnRect[]): ObstacleSpawn | null {
     const kind = this.pickKind(input.meters)
     const { width, height } = dimensionsFor(kind)
     const variation = this.rng()
@@ -112,15 +149,31 @@ export class ObstacleSpawner {
 
     if (kind === 'bird') {
       const band = TUNING.spawn
-      return {
-        kind,
-        x: direction === 1 ? -width : TUNING.world.width + width,
-        y: input.cameraTop + band.birdBandTop + this.rng() * band.birdBandHeight,
-        width,
-        height,
-        direction,
-        variation,
+      const x = direction === 1 ? -width : TUNING.world.width + width
+      const tentative: ObstacleSpawn = { kind, x, y: 0, width, height, direction, variation }
+      const yFor = (): number =>
+        input.cameraTop + band.birdBandTop + this.rng() * band.birdBandHeight
+      const rectFor = (y: number): SpawnRect =>
+        obstacleRect({ ...tentative, y })
+
+      // Birds entram pela lateral: NÃO reposicionamos x (sairia da borda). Se
+      // a caixa inicial do bando colidir na borda, tentamos outro y da faixa;
+      // sem y livre, o bando é pulado.
+      const gap = TUNING.spawn.overlapGap
+      let y = yFor()
+      if (!isFree(rectFor(y), occupied, gap)) {
+        y = Number.NaN
+        for (let attempt = 0; attempt < band.placementAttempts; attempt += 1) {
+          const candidate = yFor()
+          if (isFree(rectFor(candidate), occupied, gap)) {
+            y = candidate
+            break
+          }
+        }
       }
+      if (!Number.isFinite(y)) return null
+
+      return { ...tentative, y }
     }
 
     const margin = TUNING.world.wallWidth + TUNING.spawn.edgeMargin
@@ -133,14 +186,19 @@ export class ObstacleSpawner {
       x = minX + this.rng() * Math.max(0, maxX - minX)
     }
 
-    return {
-      kind,
-      x,
-      y: input.cameraTop - TUNING.spawn.aboveTop - this.rng() * TUNING.spawn.jitterY,
-      width,
-      height,
-      direction,
-      variation,
-    }
+    const y = input.cameraTop - TUNING.spawn.aboveTop - this.rng() * TUNING.spawn.jitterY
+    const tentative: ObstacleSpawn = { kind, x, y, width, height, direction, variation }
+    const resolved = resolvePlacement({
+      rect: obstacleRect(tentative),
+      occupied,
+      rng: this.rng,
+      world: TUNING.world,
+      gap: TUNING.spawn.overlapGap,
+      attempts: TUNING.spawn.placementAttempts,
+      levels: TUNING.spawn.placementLevels,
+    })
+    if (!resolved) return null
+
+    return { ...tentative, x: resolved.cx, y: resolved.cy }
   }
 }

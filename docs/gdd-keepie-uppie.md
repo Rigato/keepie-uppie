@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Versão** | 1.0 — consolidado em 18/11/2026 |
+| **Versão** | 1.1 — consolidado em 18/11/2026 · atualizado em 25/11/2026 (Ciclo 0.5) |
 | **Fontes** | `ideia-semente.md` (rounds 1–6) · `referencias-comparativas.md` · `propostas-gameplay.md` (curadas) |
-| **Status** | GDD do MVP1. Seções não validadas na conversa estão marcadas `[A Definir]` — sem invenção. |
+| **Status** | GDD do MVP1 com os ciclos 0.3–0.5. Seções não validadas na conversa estão marcadas `[A Definir]` — sem invenção. |
 | **Regra central** | Todo número citado como "valor de TESTE" é ponto de partida de calibração, não decisão. |
 
 ---
@@ -66,18 +66,21 @@ Altitude em **metros** (contador de altura) + moedas coletadas. Best pessoal **l
 | Tipo | Efeito | Feedback exigido |
 |---|---|---|
 | **Birds / Flock** | atravessam horizontalmente; tocam a bola = desvio leve; bando ocasional = set-piece de ~3–4s | visual de "passa e desvia", nunca de dano |
-| **Hard surface** | quique refletido, ângulo espelhado | sonoro/visual forte e legível |
 | **Soft surface** | a bola afunda e **perde força** (drena velocidade, não desvia) | deforma no contato (varal/toldo) |
 | **Breakable** | bola veloz **estilhaça** e passa; bola lenta é desviada | estilhaço catártico (assinatura de feedback — lição Smash Hit) |
 | **Bumper** | almofada circular que reflete a bola na direção radial; tocar no topo devolve para cima, tocar na lateral desvia | anel radial + squash, som grave curto; nunca estilhaça nem drena |
-| **Ramp** | barra diagonal (~35°) que reflete a bola para o lado, como um hard girado | flash do hard + risco claro ao longo da rampa; som pelo lado do impacto |
+| **Ramp** | barra diagonal (~35°) que reflete a bola para o lado, como uma barra rígida girada | flash de impacto rígido + risco claro ao longo da rampa; som pelo lado do impacto |
 
-**Spawn/composição do mundo:** procedural, densidade crescente com altitude, mix por faixa de altura (lição Doodle Jump: dificuldade por MISTURA). Desde a 0.4.0, Bumper e Ramp entram no mix depois de 300 m (peso 10%/7% na faixa 300–600 m e 15%/13% acima de 600 m, somando 100 por faixa); antes disso o jogador aprende o vocabulário base. `[números: teste]`
+**Spawn/composição do mundo:** procedural, densidade crescente com altitude (lição Doodle Jump: dificuldade por MISTURA). **Ciclo 0.5:** o **Hard** (barra horizontal rígida) foi removido — perdeu função com Bumper, Ramp e Goal. Os pesos restantes foram renormalizados e o mix virou **curvas contínuas** com âncoras em 0/300/600/1200 m, ordem `[soft, breakable, bird, bumper, ramp]`: 0 m `[67,33,0,0,0]` · 300 m `[42,33,25,0,0]` · 600 m `[25,28,24,14,9]` · 1200 m `[17,23,25,19,16]`. O passo entre obstáculos cai de **200 m para 110 m** com smoothstep até 1500 m (200 / 176,7 / 133,3 / 110 m em 0/500/1000/2000 m), sem degrau de faixa. `[TESTE]`
 
-### 3.6 Interativos (0.4.0)
+**Sobreposição de spawn (0.5.0):** obstáculos, interativos e gols não nascem mais em cima uns dos outros. O resolvedor puro (`src/core/spawn-layout.ts`) permite o mesmo nível (mesmo y) quando há espaço lateral; se houver sobreposição, move lateralmente; sem espaço, recua para cima (mais longe da câmera); em último caso, pula o spawn. A trilha/padrão de moedas se move como grupo rígido, sem deformar o desenho. Folga padrão de 12 u. `[TESTE]`
+
+### 3.6 Interativos (0.4.0; padrões na 0.5.0)
 - **Rings (argolas):** a bola atravessa = burst de moedas. Dá propósito positivo ao ângulo.
 - **Springs (molas):** lançam a bola alto **sem consumir chute** — rota planejada, atalho ousado (não elevador: posicionamento ganha o valor).
 - **Coins (moedas):** coleta por contato; posicionadas em rota ousada. **Sink desde a 0.3.0:** a loja de consumíveis (ver 3.11).
+  - **Padrões (0.5.0):** o conjunto de moedas pode nascer em **trilha vertical, linha horizontal, quadrado (contorno 3×3), losango, estrela (5 pontas, 10 moedas) ou zigue-zague**. O conjunto é posicionado como grupo rígido, então o desenho nunca se deforma; os pesos são `[TESTE]` (trilha 34, horizontal 18, quadrado 16, zigue-zague 16, losango 9, estrela 7).
+  - **Moeda especial (0.5.0):** maior, com estrela e halo próprios, vale **5** (10 na febre) e aparece **exatamente uma por conjunto** a partir de **400 m**. `[CONFIRMAR]` altitude mínima; o ímã também a atrai.
 - **Pickups de powerup:** spawnam como itens de rota (pegar = decisão de desvio): Magnet, Aimed Shot, Shield e Sweet Spot.
 
 ### 3.7 Powerups (pickups na fase)
@@ -87,9 +90,10 @@ Altitude em **metros** (contador de altura) + moedas coletadas. Best pessoal **l
 - **Janela: 2s (valor de TESTE).** Solta antes = dispara. Expira = dispara com a mira/força atuais; **se a força estiver muito baixa, aplica força média default** (a bola não pode só cair do timeout).
 - UI da mira: banda do puxão até o dedo + flecha indicando o lançamento oposto; o tempo visível (legibilidade).
 
-**Magnet** (round 5):
-- Puxa moedas próximas por **15s** (valor de TESTE). Re-pegar **reinicia** pra 15s (não soma).
-- Puxa **apenas moedas** — argolas exigem trajetória da bola, não sucção. `[raio de puxão: teste]`
+**Magnet** (round 5; durações separadas na 0.5.0):
+- O **pickup do mundo** puxa moedas próximas por **15 s** (valor de TESTE); re-pegar **reinicia** pra 15 s (não soma).
+- O **consumível da barra** dura **45 s** (valor de TESTE, pedido do usuário em 25/11/2026); raio e puxão são os mesmos do pickup.
+- Puxa **apenas moedas** (incluindo a especial) — argolas exigem trajetória da bola, não sucção. `[raio de puxão: teste]`
 
 **Shield** (0.4.0):
 - Uma carga, janela de **12 s**: o próximo contato com obstáculo vira um quique amigável para cima, ignorando dreno/estilhaço/desvio. Bolha na bola; **não** salva de queda (isso é da Safety Net).
@@ -101,7 +105,7 @@ Altitude em **metros** (contador de altura) + moedas coletadas. Best pessoal **l
 
 #### 3.7.1 Goal — trave/gol (0.4.0)
 Set piece a cada **400–600 m**, nunca antes de 100 m (primeiro em 200 m): moldura de gol com **vão 180×120** e postes de 14. Passar pelo vão = `GOAL!` + **15 moedas**.
-- **Postes** são hard (refletem a bola); o **travessão é sensor visual** (não colide) para o jogador conseguir atravessar o vão. **Decidido pelo usuário (25/11/2026): sensor mantido**; a proposta original pedia os dois duros, mas um travessão duro fecha a passagem num jogo vertical.
+- **Postes** são rígidos (refletem a bola); o **travessão é sensor visual** (não colide) para o jogador conseguir atravessar o vão. **Decidido pelo usuário (25/11/2026): sensor mantido**; a proposta original pedia os dois duros, mas um travessão rígido fecha a passagem num jogo vertical.
 - `[CONFIRMAR]` recompensa: 15 moedas (recomendado na proposta: 15–25, ou febre curta). O goal nasce acima da câmera e é descartado ao sair por baixo.
 
 ### 3.8 Camadas de skill do MVP1
@@ -121,10 +125,11 @@ Nenhuma interação silenciosa: chute (som + squash proporcionais à força — 
 - Safety Net só dispara depois de a run começar; se o jogador nunca tocou na bola, o consumível não é gasto.
 - Chutão com Aimed Shot armado → o Aimed tem prioridade; o Chutão armado espera o próximo chute normal.
 - Chutão ativado não dispara em whiff nem em toque antes do ápice; o próximo chute válido usa 2750 u/s. A unidade é gasta na ativação, não no chute.
-- Magnet agora é ativável: o ícone gasta a unidade no toque e liga 15 s na hora; não existe mais o "Magnet Start" automático no primeiro toque.
+- Magnet agora é ativável: o ícone gasta a unidade no toque e liga 45 s na hora (o pickup do mundo continua 15 s); não existe mais o "Magnet Start" automático no primeiro toque. Um pickup de 15 s **não encurta** um Magnet de 45 s já ativo; o consumível pode estender o pickup.
+- Moeda especial: a partir de 400 m, todo conjunto tem exatamente uma; o ímã a atrai e a febre multiplica o valor de 5 para 10.
 - Streak Saver ativado protege o próximo whiff; se o streak estiver em 0, o whiff não gasta a proteção (não há o que salvar).
 - Shield e Safety Net podem coexistir: o Shield cobre contato com obstáculo, a rede cobre a morte.
-- Goal: o travessão é sensor, não hard; os postes refletem. Passar pelo vão conta mesmo tocando a rede visual.
+- Goal: o travessão é sensor, não rígido; os postes refletem. Passar pelo vão conta mesmo tocando a rede visual.
 
 ### 3.11 Consumíveis da loja (0.4.0)
 Modelo: **3 slots, sem duplicatas, com devolução ao pool**. Comprar adiciona ao inventário; equipar não gasta; usar gasta uma unidade. Quando a última unidade sai, o item também sai do loadout. A loja é o sink das moedas e abre pelo título e pela tela de morte.
@@ -134,7 +139,7 @@ Modelo: **3 slots, sem duplicatas, com devolução ao pool**. Comprar adiciona a
 | Consumível (EN/PT) | Efeito | Preço `[TESTE]` |
 |---|---|---:|
 | **Safety Net** / Rede de Proteção | Passiva. Na morte, depois de a run ter começado, a bola reaparece 180 u acima da linha de morte com 1500 u/s para cima. Uma carga; a run continua e conta como normal. | 50 |
-| **Magnet** / Ímã | Ativável. Toque no ícone = Magnet por 15 s, com o mesmo raio/puxão do pickup. | 30 |
+| **Magnet** / Ímã | Ativável. Toque no ícone = Magnet por **45 s** (0.5.0; o pickup do mundo continua 15 s), com o mesmo raio/puxão do pickup. | 30 |
 | **Power Kick** / Chutão | Ativável. Toque no ícone arma; o próximo chute válido sai a **2750 u/s**, mantendo o ângulo do ponto de toque; o Perfect soma +60 (2810, abaixo da mola em 2850). Whiff não dispara. | 40 |
 | **Streak Saver** / Salva-Streak | Ativável. Toque no ícone arma; o próximo whiff não quebra o streak. Não protege contra morte nem contra obstáculo. | 25 |
 
@@ -182,6 +187,8 @@ Modelo: **3 slots, sem duplicatas, com devolução ao pool**. Comprar adiciona a
 | Powerups | Aimed Shot (2s, piso no timeout, armado sem prazo) · Magnet (15s, reset) |
 | Skill | Perfect Touch · Streak com rótulos + febre |
 
+*O **Hard** listado acima é histórico da F7; ele foi removido no Ciclo 0.5 (ver abaixo).*
+
 ### FORA do MVP1 (explícito — não construir)
 Time-Warp · multiball · zero-G · câmera-creep (vira knob de tuning só no playtest) · saves/AD · biomas/tema final · placar online · tutorial extenso (a run É o tutorial). **Nota:** Power Kick/Chutão e loja/loadout/pool saíram desta lista e foram implementados no Ciclo 0.3.
 
@@ -212,5 +219,14 @@ Save-AD · Time-Warp · biomas · multiball (se provar valor) · online (se mere
 |---|---|
 | Visual | textura em 3 camadas (corpo, padrão, acabamento); só o padrão gira. Rolagem por `vx`, giro residual do chute (central = backspin), Aimed Shot e giro lento no título. Física e colisão inalteradas. |
 | Docs | `docs/release/fix14-rotacao-da-bola.md` |
+
+### Ciclo 0.5 — spawn, moedas e ímã (implementado)
+| Bloco | Conteúdo |
+|---|---|
+| Spawn | resolvedor de sobreposição (lateral → vertical → skip) para obstáculos, interativos e gols; grupos de moedas se movem inteiros; folga de 12 u. |
+| Obstáculos | **Hard removido**; mix e densidade viram curvas contínuas (âncoras 0/300/600/1200 m; passo 200→110 m até 1500 m). |
+| Moedas | padrões trilha/horizontal/quadrado/losango/estrela/zigue-zague; **moeda especial de 5** acima de 400 m, 1 por conjunto, visual próprio. |
+| Ímã | consumível da barra passa a **45 s**; pickup do mundo continua 15 s. |
+| Docs | `docs/release/fix15-spawn-moedas-e-ima.md` |
 
 **Gate de validação:** o playtest do MVP1 decide tudo que vem depois — diversão se valida no jogável, não no documento.
