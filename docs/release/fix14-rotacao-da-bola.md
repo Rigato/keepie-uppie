@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | **Data** | 25/11/2026 |
-| **Build** | `0.4.1-mvp1` · F7 |
-| **Pacote** | `release/keepie-uppie-v0.4.1-mvp1.zip` (a gerar no push) |
+| **Build** | `0.4.1-mvp1` · F7 · `440cc34` |
+| **Pacote** | `release/keepie-uppie-v0.4.1-mvp1.zip` · 358,5 KiB · SHA-256 `48ad89f98f57ca3002484cb6a61460535da3e21fa60866dbcce28f2bdbabb592` |
 | **URL** | https://rigato.github.io/keepie-uppie/ |
 
 ## O pedido
