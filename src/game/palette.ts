@@ -14,7 +14,12 @@ export const PALETTE = {
   ballSeam: 0xd6e2ec,
   wall: 0xa3c2d9,
   danger: 0xd64545,
-  soft: 0x2f8a6c,
+  /** Barreira de jogadores de falta: azul forte, short claro, dois tons de pele. */
+  barrier: 0x1466c8,
+  barrierShorts: 0xe8eef5,
+  barrierSkinA: 0xf0c49a,
+  barrierSkinB: 0xb87a55,
+  barrierDark: 0x14243a,
   breakable: 0xb05a36,
   bird: 0x4f60a8,
   coin: 0xf5c542,

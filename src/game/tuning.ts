@@ -140,6 +140,17 @@ export const TUNING = {
      * da 0.1.7 — é o teto visual da recompensa da queda.
      */
     maxTop: 0.14,
+    /**
+     * Força mínima para o chute puxar a câmera para trás. Abaixo disso o toque
+     * é uma embaixadinha comum e a câmera não pisca. [TESTE]
+     */
+    kickZoomThreshold: 0.5,
+    /** Recuo máximo de zoom no chute cheio (4%). [TESTE] */
+    kickZoomMax: 0.04,
+    /** Saída rápida, pausa curta no fundo e volta mais lenta. [TESTE] */
+    kickZoomOutMs: 80,
+    kickZoomHoldMs: 40,
+    kickZoomBackMs: 200,
   },
 
   run: {
@@ -161,14 +172,28 @@ export const TUNING = {
   },
 
   obstacle: {
-    softWidth: 152,
-    softHeight: 18,
+    /**
+     * Barreira de jogadores de falta: hitbox honesta com os quatro corpos
+     * lado a lado. A largura é a mesma da antiga folhagem; a altura cresce
+     * para caber cabeça, camisa, short e chuteira. [TESTE]
+     */
+    barrierWidth: 152,
+    barrierHeight: 32,
+    /**
+     * Quique da barreira: a bola sempre sai para cima e para um dos lados.
+     * `restitution` escala a velocidade de entrada (com piso em `minLift`);
+     * `sideKick` + `sideCarry` definem a saída lateral, limitada por `maxSide`.
+     * [TESTE]
+     */
+    barrierRestitution: 0.72,
+    barrierMinLift: 620,
+    barrierSideKick: 300,
+    barrierSideCarry: 0.12,
+    barrierMaxSide: 520,
     breakableWidth: 106,
     breakableHeight: 21,
     /** Velocidade mínima para romper o breakable (recalibrada com a nova faixa de chute). [TESTE] */
     breakSpeed: 1800,
-    /** Fração de velocidade perdida no soft. */
-    softDamp: 0.45,
     birdWidth: 37,
     birdHeight: 21,
     birdRadius: 11,
@@ -229,7 +254,7 @@ export const TUNING = {
     /**
      * Âncoras do mix de obstáculos, interpoladas com smoothstep entre as
      * vizinhas (sem faixas com degrau). Ordem dos pesos:
-     * [soft, breakable, bird, bumper, ramp]. Cada âncora soma 100.
+     * [barrier, breakable, bird, bumper, ramp]. Cada âncora soma 100.
      * Bumper/ramp entram com peso 0 em 0 e 300 m e crescem suavemente depois
      * disso; o hard foi removido e os demais pesos foram renormalizados. [TESTE]
      */

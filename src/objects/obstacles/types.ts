@@ -5,8 +5,10 @@ export type { ObstacleSpawn } from '../../game/contracts'
 
 export interface ObstacleContact {
   /** Efeito no gameplay; a cena aplica na bola. */
-  result: 'reflect' | 'damp' | 'shatter' | 'deflect'
+  result: 'reflect' | 'damp' | 'shatter' | 'deflect' | 'bounce'
   point: Vec2
+  /** Obrigatório em 'bounce': lado do impacto em relação ao centro da barreira. */
+  side?: -1 | 1
   /** Obrigatória em 'reflect': normal para fora da superfície. */
   normal?: Vec2
   /** Empurrão para fora (evita grudar no obstáculo). */

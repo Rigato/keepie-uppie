@@ -1,4 +1,5 @@
 import type { Vec2 } from '../game/contracts'
+import { TUNING } from '../game/tuning'
 import { clamp } from './math'
 
 export interface RectLike {
@@ -161,4 +162,30 @@ export function wallBounce(
 ): number {
   const magnitude = Math.abs(vx) * restitution
   return side === 'left' ? magnitude : -magnitude
+}
+
+/**
+ * Quique na barreira de jogadores: a bola sempre volta para cima (vy negativo)
+ * e para o lado do impacto. O lift usa a restituição sobre a velocidade de
+ * entrada, com piso em `barrierMinLift`; a saída lateral soma um chute fixo a
+ * uma fração do vx de entrada, com teto em `barrierMaxSide`. Entradas
+ * não-finitas caem no mínimo, então a bola nunca fica sem saída.
+ */
+export function barrierBounce(
+  vx: number,
+  vy: number,
+  side: -1 | 1,
+): { vx: number; vy: number } {
+  const o = TUNING.obstacle
+  const incomingX = Number.isFinite(vx) ? vx : 0
+  const incomingY = Number.isFinite(vy) ? vy : 0
+  const direction: -1 | 1 = side === -1 ? -1 : 1
+
+  const lift = Math.max(o.barrierMinLift, Math.abs(incomingY) * o.barrierRestitution)
+  const lateral = Math.min(
+    o.barrierMaxSide,
+    o.barrierSideKick + Math.abs(incomingX) * o.barrierSideCarry,
+  )
+
+  return { vx: direction * lateral, vy: -lift }
 }

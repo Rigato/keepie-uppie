@@ -13,7 +13,7 @@ export type GameEventMap = {
     x: number
     y: number
     kind: EntityKind
-    result: 'reflect' | 'damp' | 'shatter' | 'deflect'
+    result: 'reflect' | 'damp' | 'shatter' | 'deflect' | 'bounce'
     strength: number
   }
   coin: { x: number; y: number; value: number; fever: boolean }

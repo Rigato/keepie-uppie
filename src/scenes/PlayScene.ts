@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
-import { metersFromTop, ratchetCameraY, smoothCameraY } from '../core/camera'
-import { reflectVelocity, wallBounce } from '../core/collision'
+import { kickZoomAmount, metersFromTop, ratchetCameraY, smoothCameraY } from '../core/camera'
+import { barrierBounce, reflectVelocity, wallBounce } from '../core/collision'
 import { resolveAim } from '../core/aim'
 import {
   aimOffset,
@@ -48,7 +48,7 @@ import { Hud } from '../ui/hud'
 import { Parallax } from '../ui/parallax'
 import { PowerupHud } from '../ui/powerup-hud'
 import { StaminaBar } from '../ui/stamina-bar'
-import { drawBackdrop } from '../ui/backdrop'
+import { BACKDROP_BLEED, drawBackdrop } from '../ui/backdrop'
 
 type BallState = BallLike
 
@@ -75,6 +75,8 @@ export class PlayScene extends Phaser.Scene {
   private meters = 0
   private coins = 0
   private cameraY = 0
+  /** Geração do recuo de zoom: invalida onComplete de tweens órfãos. */
+  private zoomSeq = 0
   /** Teto de queda do estágio atual; sobe a cada `difficulty.stageMeters` de pico. */
   private fallSpeedLimit: number = TUNING.physics.maxFallSpeed
   /** Último estágio aplicado, para o aviso de ritmo disparar uma vez por degrau. */
@@ -204,6 +206,10 @@ export class PlayScene extends Phaser.Scene {
     DEBUG_STATE.powerup = '—'
 
     this.cameras.main.setScroll(0, 0)
+    // Retry/create sempre recomeçam em zoom 1, sem resíduo de chute anterior.
+    this.zoomSeq += 1
+    this.tweens.killTweensOf(this.cameras.main)
+    this.cameras.main.setZoom(1)
 
     drawBackdrop(this, { walls: true }).setScrollFactor(0).setDepth(0)
     this.grid = this.add.graphics().setDepth(1)
@@ -223,7 +229,9 @@ export class PlayScene extends Phaser.Scene {
       0,
       0,
     )
-    scrim.fillRect(0, 0, width, 170)
+    // Só a largura transborda: o zoom out não deixa cantos sem scrim, e a
+    // altura/fade permanecem idênticos em zoom 1 (fora da tela).
+    scrim.fillRect(-BACKDROP_BLEED, 0, width + BACKDROP_BLEED * 2, 170)
 
     // Bola de futebol: textura gerada (icosaedro truncado) + halo dourado que
     // mantém a leitura da bola contra o céu claro.
@@ -589,7 +597,8 @@ export class PlayScene extends Phaser.Scene {
 
   private applyObstacleContact(obstacle: ObstacleInstance, contact: ObstacleContact): void {
     // Escudo: o próximo contato vira um quique amigável para cima e ignora
-    // dreno/estilhaço/desvio. A carga é gasta aqui.
+    // o efeito original (quique da barreira, estilhaço ou desvio). A carga é
+    // gasta aqui.
     if (this.tryShieldSave(obstacle, contact)) return
 
     switch (contact.result) {
@@ -611,11 +620,19 @@ export class PlayScene extends Phaser.Scene {
         this.cameras.main.shake(70, TUNING.fx.shakeHard * contact.strength)
         break
       }
-      case 'damp': {
-        const keep = 1 - TUNING.obstacle.softDamp
-        this.ball.vx *= keep
-        this.ball.vy *= keep
-        audio.play('damp')
+      case 'bounce': {
+        // A barreira nunca drena: devolve a bola para cima e para o lado, e
+        // empurra para fora da hitbox para não deixá-la presa no grupo.
+        const bounced = barrierBounce(this.ball.vx, this.ball.vy, contact.side ?? 1)
+        this.ball.vx = bounced.vx
+        this.ball.vy = bounced.vy
+        if (contact.normal) {
+          const push = (contact.penetration ?? 0) + 2
+          this.ball.x += contact.normal.x * push
+          this.ball.y += contact.normal.y * push
+        }
+        audio.play('damp', { pitch: 1.05 })
+        this.cameras.main.shake(60, TUNING.fx.shakeHard * contact.strength * 0.6)
         break
       }
       case 'shatter': {
@@ -931,6 +948,7 @@ export class PlayScene extends Phaser.Scene {
 
     this.ball.vx = shot.dir.x * shot.speed
     this.ball.vy = shot.dir.y * shot.speed
+    this.playKickZoom(shot.ratio)
     this.ballSpin.residual = kickSpin(aimOffset(shot.dir.x), shot.ratio)
     this.arcApexY = this.ball.y
     this.lastArc((2 * shot.speed) / TUNING.physics.gravity, shot.ratio)
@@ -998,7 +1016,7 @@ export class PlayScene extends Phaser.Scene {
 
   /**
    * Escudo: consome a carga no primeiro contato com obstáculo e devolve a bola
-   * para cima, sem aplicar o efeito original (dreno, estilhaço ou desvio).
+   * para cima, sem aplicar o efeito original (quique, estilhaço ou desvio).
    */
   private tryShieldSave(
     obstacle: ObstacleInstance,
@@ -1320,6 +1338,7 @@ export class PlayScene extends Phaser.Scene {
 
     this.ball.vx = result.vx
     this.ball.vy = result.vy
+    this.playKickZoom(result.power)
     this.ballSpin.residual = kickSpin(result.offset, result.power)
     this.arcApexY = this.ball.y
     this.lastArc(result.arcTime, result.power)
@@ -1340,6 +1359,46 @@ export class PlayScene extends Phaser.Scene {
       duration: 60 + 30 * power,
       yoyo: true,
       ease: 'Quad.out',
+    })
+  }
+
+  /**
+   * Recuo de câmera proporcional à força: sai rápido, segura o fundo por um
+   * instante e volta devagar. Cadeia de tweens (não yoyo) + número de geração
+   * evitam resíduo de zoom e onComplete órfão quando outro chute entra no meio.
+   */
+  private playKickZoom(power: number): void {
+    const amount = kickZoomAmount(power)
+    if (amount <= 0) return
+
+    const cam = this.cameras.main
+    const seq = ++this.zoomSeq
+    this.tweens.killTweensOf(cam)
+    // Garante partida de 1 mesmo se um tween anterior foi interrompido.
+    cam.setZoom(1)
+
+    const zoomed = 1 - amount
+    const alive = (): boolean => seq === this.zoomSeq && !this.dead && this.scene.isActive()
+    this.tweens.add({
+      targets: cam,
+      zoom: { from: 1, to: zoomed },
+      duration: TUNING.camera.kickZoomOutMs,
+      ease: 'Quad.out',
+      onComplete: () => {
+        if (!alive()) return
+        cam.setZoom(zoomed)
+        this.tweens.add({
+          targets: cam,
+          zoom: { from: zoomed, to: 1 },
+          delay: TUNING.camera.kickZoomHoldMs,
+          duration: TUNING.camera.kickZoomBackMs,
+          ease: 'Quad.inOut',
+          onComplete: () => {
+            if (!alive()) return
+            cam.setZoom(1)
+          },
+        })
+      },
     })
   }
 
@@ -1588,6 +1647,10 @@ export class PlayScene extends Phaser.Scene {
       return
     }
     this.dead = true
+    // Morte/retry não herdam zoom: tween morto e câmera de volta ao normal.
+    this.zoomSeq += 1
+    this.tweens.killTweensOf(this.cameras.main)
+    this.cameras.main.setZoom(1)
     this.aiming = false
     this.bufferedTap = null
     this.aimedArmed = false

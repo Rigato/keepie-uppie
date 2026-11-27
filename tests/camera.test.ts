@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { metersFromTop, ratchetCameraY, smoothCameraY } from '../src/core/camera'
+import { kickZoomAmount, metersFromTop, ratchetCameraY, smoothCameraY } from '../src/core/camera'
 import { TUNING } from '../src/game/tuning'
 
 describe('altitude', () => {
@@ -36,5 +36,42 @@ describe('câmera-catraca', () => {
     expect(next).toBeLessThan(0)
     expect(next).toBeGreaterThan(-400)
     expect(smoothCameraY(-400, 0, 1 / 60)).toBe(-400)
+  })
+})
+
+describe('zoom do chute', () => {
+  const { kickZoomThreshold, kickZoomMax } = TUNING.camera
+
+  it('não recua no threshold e abaixo dele', () => {
+    expect(kickZoomAmount(0)).toBe(0)
+    expect(kickZoomAmount(kickZoomThreshold - 0.01)).toBe(0)
+    expect(kickZoomAmount(kickZoomThreshold)).toBe(0)
+  })
+
+  it('entrega o máximo em força cheia', () => {
+    expect(kickZoomAmount(1)).toBe(kickZoomMax)
+  })
+
+  it('cresce monotonicamente dentro da rampa', () => {
+    const steps = 20
+    let previous = -1
+    for (let i = 0; i <= steps; i += 1) {
+      const amount = kickZoomAmount(kickZoomThreshold + (1 - kickZoomThreshold) * (i / steps))
+      expect(amount).toBeGreaterThanOrEqual(previous)
+      previous = amount
+    }
+    expect(kickZoomAmount(0.75)).toBeGreaterThan(0)
+    expect(kickZoomAmount(0.75)).toBeLessThan(kickZoomMax)
+  })
+
+  it('clampa fora de 0..1', () => {
+    expect(kickZoomAmount(-3)).toBe(0)
+    expect(kickZoomAmount(2)).toBe(kickZoomMax)
+  })
+
+  it('entradas inválidas não geram zoom', () => {
+    expect(kickZoomAmount(Number.NaN)).toBe(0)
+    expect(kickZoomAmount(Number.POSITIVE_INFINITY)).toBe(0)
+    expect(kickZoomAmount(Number.NEGATIVE_INFINITY)).toBe(0)
   })
 })

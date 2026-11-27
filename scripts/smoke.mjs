@@ -689,6 +689,24 @@ async function main() {
         throw new Error(`chute do Power Kick a ${kick.speed} u/s; esperava ~2750`)
       }
 
+      // O chute forte também puxa a câmera de leve para trás e volta.
+      const zoomOut = await poll(
+        () =>
+          page.evaluate(() => {
+            const zoom = window.keepie?.game?.scene?.getScene('Play')?.cameras?.main?.zoom
+            return Number.isFinite(zoom) && zoom < 0.999 ? zoom : null
+          }),
+        { timeout: TIMEOUT.bar, interval: 20, label: 'zoom out do chute forte' },
+      )
+      await poll(
+        () =>
+          page.evaluate(() => {
+            const zoom = window.keepie?.game?.scene?.getScene('Play')?.cameras?.main?.zoom
+            return Number.isFinite(zoom) && Math.abs(zoom - 1) < 0.002 ? true : null
+          }),
+        { timeout: TIMEOUT.bar, interval: 30, label: 'zoom de volta ao normal' },
+      )
+
       // 3) Streak Saver: ativa e o próximo whiff não zera o streak.
       await tapSlot('streak')
       await poll(
@@ -738,7 +756,7 @@ async function main() {
         throw new Error(`loadout deveria esvaziar; ficou ${JSON.stringify(finalSave.loadout)}`)
       }
 
-      return `Magnet ${magnet.remaining} ms · Power Kick ${kick.speed} u/s · streak ${streak.before}→${streak.after} · net intacta`
+      return `Magnet ${magnet.remaining} ms · Power Kick ${kick.speed} u/s · zoom ${zoomOut.toFixed(3)}→1 · streak ${streak.before}→${streak.after} · net intacta`
     })
 
     await runStep('Bola: padrão gira e acabamento fica parado', async () => {
@@ -784,6 +802,69 @@ async function main() {
       if (left.marker !== 0) throw new Error(`marcador girou junto: ${left.marker}`)
 
       return `vx +600 → ${right.pattern.toFixed(2)} rad · vx −600 → ${left.pattern.toFixed(2)} rad · glow e marcador parados`
+    })
+
+    await runStep('Barreira: quica para cima e para o lado', async () => {
+      // Planta uma barreira isolada e derruba a bola na metade esquerda: o
+      // quique tem de subir e sair para a esquerda, sem drenar e sem matar.
+      await page.evaluate(() => {
+        const scene = window.keepie.game.scene.getScene('Play')
+        // O passo da estamina congela física e câmera; aqui a bola precisa cair.
+        delete scene.stepPhysics
+        delete scene.updateCamera
+        scene.die = () => {}
+        scene.started = true
+        for (const obstacle of scene.obstacles) obstacle.destroy()
+        scene.obstacles = []
+        for (const item of scene.interactives) item.destroy()
+        scene.interactives = []
+        for (const goal of scene.goals) goal.destroy()
+        scene.goals = []
+        scene.goalSpawner.update = () => null
+        scene.interactiveSpawner.update = () => []
+        scene.ball.x = 250
+        scene.ball.y = 650
+        scene.ball.vx = 0
+        scene.ball.vy = 500
+        scene.arcApexY = 650
+        scene.cameraY = 0
+        scene.cameras.main.setScroll(0, 0)
+        let fired = false
+        scene.spawner.update = () => {
+          if (fired) return []
+          fired = true
+          return [
+            {
+              kind: 'barrier',
+              x: 270,
+              y: 700,
+              width: 152,
+              height: 32,
+              direction: 1,
+              variation: 0.5,
+            },
+          ]
+        }
+      })
+
+      const bounce = await poll(
+        () =>
+          page.evaluate(() => {
+            const scene = window.keepie.game.scene.getScene('Play')
+            const ball = scene?.ball
+            if (!ball) return null
+            return ball.vy < -100
+              ? { vx: ball.vx, vy: ball.vy, obstacles: scene.obstacles.length }
+              : null
+          }),
+        { timeout: 2000, interval: 30, label: 'quique da barreira' },
+      )
+      if (bounce.obstacles < 1) throw new Error('a barreira não nasceu')
+      if (!(bounce.vx < -100)) {
+        throw new Error(`quique lateral esperado para a esquerda; vx=${bounce.vx}`)
+      }
+      if (!(bounce.vy < -500)) throw new Error(`quique para cima fraco; vy=${bounce.vy}`)
+      return `vx ${Math.round(bounce.vx)} · vy ${Math.round(bounce.vy)} · obstáculo ${bounce.obstacles}`
     })
 
     await runStep('Console sem erros', async () => {

@@ -11,7 +11,7 @@ export interface BallLike extends Vec2 {
 }
 
 export type EntityKind =
-  | 'soft'
+  | 'barrier'
   | 'breakable'
   | 'bird'
   | 'bumper'
@@ -26,7 +26,7 @@ export type EntityKind =
   | 'goal'
 
 /** Obstáculos que o spawner coloca no caminho. */
-export type ObstacleKind = 'soft' | 'breakable' | 'bird' | 'bumper' | 'ramp'
+export type ObstacleKind = 'barrier' | 'breakable' | 'bird' | 'bumper' | 'ramp'
 
 /** Interativos do jogo. */
 export type InteractiveKind =

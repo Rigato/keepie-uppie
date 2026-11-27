@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
+  barrierBounce,
   circleCircleHit,
   circleRectHit,
   circleRotatedRectHit,
   reflectVelocity,
   wallBounce,
 } from '../src/core/collision'
+import { TUNING } from '../src/game/tuning'
 
 const bar = { x: 100, y: 200, width: 200, height: 20 }
 
@@ -122,5 +124,55 @@ describe('wallBounce', () => {
     // ~17%. O suficiente para continuar viva sem atravessar a tela de graça.
     expect(Math.abs(vx) / 1800).toBeCloseTo(restitution ** 8, 5)
     expect(Math.abs(vx) / 1800).toBeLessThan(0.2)
+  })
+})
+
+describe('barrierBounce', () => {
+  const o = TUNING.obstacle
+
+  it('transforma queda em subida', () => {
+    const bounced = barrierBounce(0, 900, 1)
+    expect(bounced.vy).toBeLessThan(0)
+    expect(bounced.vy).toBeCloseTo(-900 * o.barrierRestitution, 5)
+  })
+
+  it('garante o lift mínimo mesmo num toque quase parado', () => {
+    expect(barrierBounce(0, 0, 1).vy).toBeCloseTo(-o.barrierMinLift, 5)
+    expect(barrierBounce(0, 10, -1).vy).toBeCloseTo(-o.barrierMinLift, 5)
+  })
+
+  it('sai para o lado esquerdo ou direito conforme o impacto', () => {
+    expect(barrierBounce(0, 900, -1).vx).toBeLessThan(0)
+    expect(barrierBounce(0, 900, 1).vx).toBeGreaterThan(0)
+    expect(barrierBounce(0, 900, -1).vx).toBeCloseTo(-o.barrierSideKick, 5)
+    expect(barrierBounce(0, 900, 1).vx).toBeCloseTo(o.barrierSideKick, 5)
+  })
+
+  it('carrega parte do vx de entrada até o teto lateral', () => {
+    const carried = barrierBounce(1000, 900, 1)
+    expect(carried.vx).toBeCloseTo(o.barrierSideKick + 1000 * o.barrierSideCarry, 5)
+    expect(carried.vx).toBeLessThan(o.barrierMaxSide)
+
+    const capped = barrierBounce(10000, 900, -1)
+    expect(capped.vx).toBeCloseTo(-o.barrierMaxSide, 5)
+    expect(Math.abs(capped.vx)).toBeLessThanOrEqual(o.barrierMaxSide)
+  })
+
+  it('entrada centrada ainda sai com o chute lateral mínimo', () => {
+    expect(barrierBounce(0, 400, 1)).toEqual({
+      vx: o.barrierSideKick,
+      vy: -o.barrierMinLift,
+    })
+  })
+
+  it('valores inválidos caem no mínimo, sem travar a bola', () => {
+    expect(barrierBounce(Number.NaN, Number.NaN, Number.NaN as -1 | 1)).toEqual({
+      vx: o.barrierSideKick,
+      vy: -o.barrierMinLift,
+    })
+    expect(barrierBounce(Number.POSITIVE_INFINITY, -50, -1)).toEqual({
+      vx: -o.barrierSideKick,
+      vy: -o.barrierMinLift,
+    })
   })
 })

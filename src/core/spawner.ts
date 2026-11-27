@@ -25,7 +25,7 @@ export interface SpawnInput {
 }
 
 const KIND_ORDER: readonly ObstacleKind[] = [
-  'soft',
+  'barrier',
   'breakable',
   'bird',
   'bumper',
@@ -40,8 +40,8 @@ interface Dimensions {
 function dimensionsFor(kind: ObstacleKind): Dimensions {
   const o = TUNING.obstacle
   switch (kind) {
-    case 'soft':
-      return { width: o.softWidth, height: o.softHeight }
+    case 'barrier':
+      return { width: o.barrierWidth, height: o.barrierHeight }
     case 'breakable':
       return { width: o.breakableWidth, height: o.breakableHeight }
     case 'bird':
@@ -136,9 +136,9 @@ export class ObstacleSpawner {
 
     for (let i = 0; i < KIND_ORDER.length; i += 1) {
       roll -= weights[i] ?? 0
-      if (roll <= 0) return KIND_ORDER[i] ?? 'soft'
+      if (roll <= 0) return KIND_ORDER[i] ?? 'barrier'
     }
-    return 'soft'
+    return 'barrier'
   }
 
   private make(input: SpawnInput, occupied: readonly SpawnRect[]): ObstacleSpawn | null {
