@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Versão** | 1.3 — consolidado em 18/11/2026 · atualizado em 25/11/2026 (Ciclo 0.7) |
+| **Versão** | 1.4 — consolidado em 18/11/2026 · atualizado em 27/11/2026 (Ciclo 0.8) |
 | **Fontes** | `ideia-semente.md` (rounds 1–6) · `referencias-comparativas.md` · `propostas-gameplay.md` (curadas) |
-| **Status** | GDD do MVP1 com os ciclos 0.3–0.7. Seções não validadas na conversa estão marcadas `[A Definir]` — sem invenção. |
+| **Status** | GDD do MVP1 com os ciclos 0.3–0.8. Seções não validadas na conversa estão marcadas `[A Definir]` — sem invenção. |
 | **Regra central** | Todo número citado como "valor de TESTE" é ponto de partida de calibração, não decisão. |
 
 ---
@@ -24,7 +24,7 @@
 **Pilares de design** (testáveis contra qualquer decisão futura):
 1. **O dedo é o pé.** Todo chute nasce do toque direto na bola; a posição do toque no corpo da bola define o ângulo (oposto, como chutar uma bola de verdade). *Teste:* qualquer mecânica que peça mira/aim-UI no jogo base é rejeitada — mira existe só como powerup raro.
 2. **Ritmo de embaixadinha.** Só se chuta bola em queda; o toque no ápice rende uma embaixadinha curta (~0.8s de arco) e a queda cheia chega a ~4.0s — a altura é a recompensa por esperar a bola descer, e o fundo da tela é o grande golpe da run. De 80% da tela para baixo o ganho por trecho cresce: cada unidade caída vale mais que a anterior. *Teste:* qualquer pausa no tempo real precisa ser item-powerup consciente e raro (Aimed Shot é a única).
-3. **Perturbar, nunca matar.** Obstáculos desviam, drenam ou estilhaçam — nenhum mata no contato. A única morte é a queda. *Teste:* cada obstáculo novo responde "isso cria recuperação ou encerra o show?". Encerrar = rejeitado.
+3. **Perturbar, nunca matar.** Obstáculos desviam, quicam ou estilhaçam — nenhum mata no contato. A única morte é a queda. *Teste:* cada obstáculo novo responde "isso cria recuperação ou encerra o show?". Encerrar = rejeitado.
 4. **Legibilidade radical.** Todo evento tem tempo de leitura — animação/feedback antes de o jogo exigir ação de volta (round 4, do usuário). *Teste:* o jogador nunca pergunta "o que acabou de acontecer?".
 
 ---
@@ -57,6 +57,7 @@ Toque que erra a bola **não faz nada**: sem chute, sem penalidade, a bola segue
 - **Linha de morte:** o fundo da tela; sobe com o progresso. Bola cruza o fundo = fim da run (rounds 1–2).
 - **Ritmo progressivo:** a cada 500 m de altitude de pico, o teto de queda sobe 75 u/s, de 900 até 1200 u/s; no limite a janela de toque fica em ~0,125 s. O aviso `FASTER FALLS` marca cada degrau e o ritmo reseta a cada run. A regra de chute não muda — o mesmo toque rende a mesma força; o que encolhe é o tempo de decisão. `[degraus: teste]`
 - **Paredes laterais:** a bola **quica** nas bordas da tela; sem wrap-around. O quique devolve 80% da velocidade lateral (`wallRestitution`): quiques encadeados perdem energia em vez de virar pinball, e a bola continua recuperável com um toque. `[damping: teste]`
+- **Zoom de força (0.8.0):** chutes acima de **50%** da força puxam a câmera de leve para trás, até **4%** no chute máximo, e a devolvem em ~0,3 s. Vale para chute normal, Chutão e Aimed. O efeito é só de leitura de impacto — não altera física, mira, colisão nem a catraca. `[TESTE]`
 - **Perfect Touch (C1):** janela central da bola — acertar = "PERFECT", **bônus pequeno de velocidade somado ao chute** + celebração curta. O perfect não substitui o timing: no ápice, o chute continua curto. `[janela e bônus: teste]`
 
 ### 3.4 Placar
@@ -66,12 +67,12 @@ Altitude em **metros** (contador de altura) + moedas coletadas. Best pessoal **l
 | Tipo | Efeito | Feedback exigido |
 |---|---|---|
 | **Birds / Flock** | atravessam horizontalmente; tocam a bola = desvio leve; bando ocasional = set-piece de ~3–4s | visual de "passa e desvia", nunca de dano |
-| **Soft surface** | a bola afunda e **perde força** (drena velocidade, não desvia) | folhagem: folhas pontudas sobrepostas, silhueta orgânica e deformação no contato (0.7.0) |
+| **Barreira de jogadores** | a bola bate nos jogadores e **quica para cima e para um dos lados** (o lado do impacto); não drena | 4 jogadores estilizados ombro a ombro, braços à frente, flinch no contato (0.8.0) |
 | **Breakable** | bola veloz **estilhaça** e passa; bola lenta é desviada | estilhaço catártico (assinatura de feedback — lição Smash Hit) |
 | **Bumper** | almofada circular que reflete a bola na direção radial; tocar no topo devolve para cima, tocar na lateral desvia | anel radial + squash, som grave curto; nunca estilhaça nem drena |
 | **Ramp** | barra diagonal (~35°) que reflete a bola para o lado, como uma barra rígida girada | flash de impacto rígido + risco claro ao longo da rampa; som pelo lado do impacto |
 
-**Spawn/composição do mundo:** procedural, densidade crescente com altitude (lição Doodle Jump: dificuldade por MISTURA). **Ciclo 0.5:** o **Hard** (barra horizontal rígida) foi removido — perdeu função com Bumper, Ramp e Goal. Os pesos restantes foram renormalizados e o mix virou **curvas contínuas** com âncoras em 0/300/600/1200 m, ordem `[soft, breakable, bird, bumper, ramp]`: 0 m `[67,33,0,0,0]` · 300 m `[42,33,25,0,0]` · 600 m `[25,28,24,14,9]` · 1200 m `[17,23,25,19,16]`. O passo entre obstáculos cai de **200 m para 110 m** com smoothstep até 1500 m (200 / 176,7 / 133,3 / 110 m em 0/500/1000/2000 m), sem degrau de faixa. `[TESTE]`
+**Spawn/composição do mundo:** procedural, densidade crescente com altitude (lição Doodle Jump: dificuldade por MISTURA). **Ciclo 0.5:** o **Hard** (barra horizontal rígida) foi removido — perdeu função com Bumper, Ramp e Goal. Os pesos restantes foram renormalizados e o mix virou **curvas contínuas** com âncoras em 0/300/600/1200 m, ordem `[barrier, breakable, bird, bumper, ramp]`: 0 m `[67,33,0,0,0]` · 300 m `[42,33,25,0,0]` · 600 m `[25,28,24,14,9]` · 1200 m `[17,23,25,19,16]`. O passo entre obstáculos cai de **200 m para 110 m** com smoothstep até 1500 m (200 / 176,7 / 133,3 / 110 m em 0/500/1000/2000 m), sem degrau de faixa. `[TESTE]`
 
 **Sobreposição de spawn (0.5.0):** obstáculos, interativos e gols não nascem mais em cima uns dos outros. O resolvedor puro (`src/core/spawn-layout.ts`) permite o mesmo nível (mesmo y) quando há espaço lateral; se houver sobreposição, move lateralmente; sem espaço, recua para cima (mais longe da câmera); em último caso, pula o spawn. A trilha/padrão de moedas se move como grupo rígido, sem deformar o desenho. Folga padrão de 12 u. `[TESTE]`
 
@@ -114,7 +115,7 @@ Set piece a cada **400–600 m**, nunca antes de 100 m (primeiro em 200 m): mold
 - **Força do streak (0.6.0):** além do bônus de moedas/febre, cada chute limpo soma **+0,5% de velocidade de chute**, com teto de **+5%** (alcançado no ON FIRE, 10 chutes) `[TESTE]`. O bônus entra na curva normal, depois da queda e antes do +60 do Perfect; não se aplica ao Chutão nem ao Aimed Shot, que mantêm a calibração própria. É sutil de propósito: no NICE são +1,5%, no GREAT +3% e no ON FIRE +5% — o jogador sente o chute render um pouco mais, sem virar outro jogo. O multiplicador usa o streak **antes** do chute atual.
 
 ### 3.9 Feedback e legibilidade (pilar 4)
-Nenhuma interação silenciosa: chute (som + squash proporcionais à força — fraco é leve, forte é pesado), desvio (traço + som), drenagem (deformação), estilhaço (partículas), powerup (anúncio + ícone de estado ativo), febre (mudança perceptível do estado). A bola rola com o movimento e recebe o giro do chute — só o padrão gira; brilho e sombra ficam fixos (0.4.1). O degrau de ritmo também se anuncia (`FASTER FALLS`), para a dificuldade não parecer bug. Consumíveis têm anúncio e efeito próprios (`SAVED!`, `CHUTÃO!`, `STREAK SAFE`, chips de Magnet/Shield/Sweet). O Goal anuncia `GOAL!` com flash e burst, e o objetivo é lido antes de o jogador chegar. Tempo de leitura em toda ativação. A estamina (0.6.0) avisa antes de punir: barra que drena, `EXHAUSTED` e tela cinza durante o bloqueio; nunca um toque que “não funciona” sem explicação.
+Nenhuma interação silenciosa: chute (som + squash proporcionais à força — fraco é leve, forte é pesado; acima de 50% da força a câmera puxa ~4% para trás), desvio (traço + som), quique de corpo (flinch da barreira), estilhaço (partículas), powerup (anúncio + ícone de estado ativo), febre (mudança perceptível do estado). A bola rola com o movimento e recebe o giro do chute — só o padrão gira; brilho e sombra ficam fixos (0.4.1). O degrau de ritmo também se anuncia (`FASTER FALLS`), para a dificuldade não parecer bug. Consumíveis têm anúncio e efeito próprios (`SAVED!`, `CHUTÃO!`, `STREAK SAFE`, chips de Magnet/Shield/Sweet). O Goal anuncia `GOAL!` com flash e burst, e o objetivo é lido antes de o jogador chegar. Tempo de leitura em toda ativação. A estamina (0.6.0) avisa antes de punir: barra que drena, `EXHAUSTED` e tela cinza durante o bloqueio; nunca um toque que “não funciona” sem explicação.
 
 ### 3.10 Casos de borda
 - Whiff com Aimed Shot armado → powerup **permanece armado**.
@@ -207,7 +208,7 @@ Modelo: **3 slots, sem duplicatas, com devolução ao pool**. Comprar adiciona a
 | Powerups | Aimed Shot (2s, piso no timeout, armado sem prazo) · Magnet (15s, reset) |
 | Skill | Perfect Touch · Streak com rótulos + febre |
 
-*O **Hard** listado acima é histórico da F7; ele foi removido no Ciclo 0.5 (ver abaixo).*
+*O **Hard** e o **Soft** listados acima são históricos da F7: o Hard foi removido no Ciclo 0.5 e o Soft virou a barreira de jogadores no Ciclo 0.8 (ver abaixo).*
 
 ### FORA do MVP1 (explícito — não construir)
 Time-Warp · multiball · zero-G · câmera-creep (vira knob de tuning só no playtest) · saves/AD · biomas/tema final · placar online · tutorial extenso (a run É o tutorial). **Nota:** Power Kick/Chutão e loja/loadout/pool saíram desta lista e foram implementados no Ciclo 0.3.
@@ -259,8 +260,15 @@ Save-AD · Time-Warp · biomas · multiball (se provar valor) · online (se mere
 ### Ciclo 0.7 — soft de folhagem e economia (implementado)
 | Bloco | Conteúdo |
 |---|---|
-| Soft | o toldo retangular vira **folhagem**: folhas pontudas sobrepostas, sem aresta reta, em duas camadas de verde; a bola atravessa e perde força. Hitbox e dreno não mudaram. |
+| Soft | o toldo retangular vira **folhagem**: folhas pontudas sobrepostas, sem aresta reta, em duas camadas de verde; a bola atravessa e perde força. Hitbox e dreno não mudaram. *(substituído pela barreira na 0.8.0)* |
 | Economia | preços da loja **2,5×**: Safety Net 125, Magnet 75, Power Kick 100 e Streak Saver 60. |
 | Docs | `docs/release/fix17-soft-folhagem-e-economia.md` |
+
+### Ciclo 0.8 — barreira de jogadores e zoom por força (implementado)
+| Bloco | Conteúdo |
+|---|---|
+| Barreira | a folhagem da 0.7 sai e entra uma **barreira de 4 jogadores de falta**, estilizada, ombro a ombro e com braços cruzados; a bola **quica para cima e para o lado do impacto** em vez de drenar. Hitbox 152×32; subida mínima de 620 u/s e lateral de 300 u/s (até 520). |
+| Zoom | acima de **50%** da força, um zoom out sutil (até **4%**) acompanha o chute e volta em ~0,3 s; vale para chute normal, Chutão e Aimed. O fundo ganhou margem para o zoom não expor a borda do canvas. |
+| Docs | `docs/release/fix18-barreira-e-zoom.md` |
 
 **Gate de validação:** o playtest do MVP1 decide tudo que vem depois — diversão se valida no jogável, não no documento.
