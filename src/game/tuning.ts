@@ -145,22 +145,16 @@ export const TUNING = {
      * é uma embaixadinha comum e a câmera não pisca. [TESTE]
      */
     kickZoomThreshold: 0.5,
-    /** Recuo máximo de zoom no chute cheio (4%). [TESTE] */
-    kickZoomMax: 0.04,
     /**
-     * [TESTE] Fração da altura da tela até a qual o zoom permanece aberto
-     * durante a queda da bola (envelope do voo). Começa a fechar depois dela.
+     * Recuo máximo de zoom no chute cheio (12%). Em 390 px de largura tira
+     * ~23 px de cada lateral e encolhe a bola de 36 para ~31,7 px — visível
+     * no miolo da tela, não só nas laterais. [TESTE]
      */
-    zoomHoldUntil: 0.4,
-    /**
-     * [TESTE] Fração da altura da tela em que o zoom já voltou ao normal
-     * (envelope 0). Entre `zoomHoldUntil` e aqui o fechamento é smoothstep.
-     */
-    zoomCloseAt: 0.72,
-    /** [TESTE] Velocidade exponencial de abertura do zoom no chute (1/s). */
-    zoomOpenSpeed: 4.2,
-    /** [TESTE] Velocidade exponencial de fechamento do zoom na queda (1/s). */
-    zoomCloseSpeed: 3.6,
+    kickZoomMax: 0.12,
+    /** [TESTE] Velocidade exponencial de abertura no chute (1/s): abre rápido. */
+    zoomOpenSpeed: 8,
+    /** [TESTE] Velocidade de fechamento no ápice (1/s): fecha em ~0,6–0,9 s. */
+    zoomCloseSpeed: 4.5,
   },
 
   run: {

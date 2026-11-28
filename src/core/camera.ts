@@ -49,42 +49,32 @@ export function kickZoomAmount(power: number): number {
   return smooth * TUNING.camera.kickZoomMax
 }
 
-function smoothstep(t: number): number {
-  const clamped = Math.max(0, Math.min(1, t))
-  return clamped * clamped * (3 - 2 * clamped)
-}
+/**
+ * Fases do recuo de zoom durante o voo da bola:
+ * - `idle`: sem chute ativo, zoom normal;
+ * - `open`: chute forte acabou de sair — a câmera abre e segue aberta na subida;
+ * - `closing`: a bola chegou ao ápice e o recuo volta a 1 sem esperar a queda.
+ */
+export type FlightZoomPhase = 'idle' | 'open' | 'closing'
 
 /**
- * Envelope 0..1 do afastamento da câmera durante o voo da bola.
- *
- * Enquanto a bola sobe (`vy < 0`) o zoom fica totalmente aberto (1). Na queda,
- * o afastamento se mantém até `ballScreenY = viewHeight * zoomHoldUntil` e
- * fecha com smoothstep até `viewHeight * zoomCloseAt`; abaixo disso o alvo é
- * o zoom normal (0). Entradas inválidas devolvem 1 de propósito: manter o
- * afastamento evita um salto/pisco de zoom quando uma leitura falha.
+ * Avança a fase do recuo. O fechamento começa EXATAMENTE no ápice, quando
+ * `vy` cruza para >= 0, e não quando a bola desce perto da zona de toque.
+ * `closing` não volta a `open` sozinha: só um chute novo pode reabrir. Uma
+ * leitura inválida de `vy` mantém a fase (evita pisco por dado ruim).
  */
-export function flightZoomEnvelope(
-  vy: number,
-  ballScreenY: number,
-  viewHeight: number,
-): number {
-  if (
-    !Number.isFinite(vy) ||
-    !Number.isFinite(ballScreenY) ||
-    !Number.isFinite(viewHeight) ||
-    viewHeight <= 0
-  ) {
-    return 1
-  }
-  if (vy < 0) return 1
+export function advanceFlightZoom(phase: FlightZoomPhase, vy: number): FlightZoomPhase {
+  if (!Number.isFinite(vy)) return phase
+  if (phase === 'open' && vy >= 0) return 'closing'
+  return phase
+}
 
-  const hold = viewHeight * TUNING.camera.zoomHoldUntil
-  const close = viewHeight * TUNING.camera.zoomCloseAt
-  if (ballScreenY <= hold) return 1
-  if (ballScreenY >= close) return 0
-  const span = close - hold
-  if (span <= 0) return 0
-  return 1 - smoothstep((ballScreenY - hold) / span)
+/** Alvo de zoom da fase: `open` recua de `amount`; as demais voltam a 1. */
+export function flightZoomTarget(phase: FlightZoomPhase, amount: number): number {
+  if (phase !== 'open') return 1
+  // Sem recuo válido não há por que mexer na câmera (e um NaN vazaria para o zoom).
+  if (!Number.isFinite(amount)) return 1
+  return 1 - Math.max(0, Math.min(1, amount))
 }
 
 /**

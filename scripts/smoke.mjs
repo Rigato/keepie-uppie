@@ -692,9 +692,10 @@ async function main() {
         throw new Error(`chute do Power Kick a ${kick.speed} u/s; esperava ~2750`)
       }
 
-      // O chute forte afasta a câmera de forma contínua; no voo o HUD continua
-      // com contra-escala (mesmo tamanho/posição na tela). Depois, ao forçar a
-      // queda da bola, o zoom volta ao normal sem pulso nem reset.
+      // O chute forte abre a câmera rápido; a física está congelada, então vy
+      // fica negativo e a fase `open` segura o recuo. O HUD contra-escala e
+      // continua com o mesmo tamanho/posição na tela. No ápice (vy >= 0) o
+      // zoom fecha sem esperar a bola descer perto da zona de toque.
       await sleep(450)
       const wide = await page.evaluate(() => {
         const scene = window.keepie.game.scene.getScene('Play')
@@ -706,8 +707,8 @@ async function main() {
           viewWidth: scene.cameras.main.width,
         }
       })
-      if (!(wide.zoom < 0.995)) {
-        throw new Error(`zoom aberto esperado (<0.995); recebi ${wide.zoom.toFixed(4)}`)
+      if (!(wide.zoom < 0.91)) {
+        throw new Error(`zoom aberto esperado (<0.91); recebi ${wide.zoom.toFixed(4)}`)
       }
       if (Math.abs(wide.hudScale - 1 / wide.zoom) >= 0.02) {
         throw new Error(
@@ -721,18 +722,36 @@ async function main() {
         )
       }
 
+      // Força o ápice/queda: a fase passa a `closing` e o zoom volta a 1.
+      // Com close 4.5/s, de ~0,88 são ~0,65 s até 0,99; 900 ms dá margem.
       await page.evaluate(() => {
         const scene = window.keepie.game.scene.getScene('Play')
-        scene.ball.y = scene.cameraY + scene.cameras.main.height * 0.85
         scene.ball.vy = 900
       })
-      await sleep(500)
+      await sleep(900)
       const zoomBack = await page.evaluate(() => {
         const zoom = window.keepie?.game?.scene?.getScene('Play')?.cameras?.main?.zoom
         return Number.isFinite(zoom) ? zoom : -1
       })
       if (!(zoomBack > 0.99)) {
         throw new Error(`zoom não voltou ao normal (>0.99); recebi ${zoomBack.toFixed(4)}`)
+      }
+
+      // Uma subida forçada sem chute novo não pode reabrir: `closing` não volta
+      // a `open` só porque vy ficou negativo de novo.
+      await page.evaluate(() => {
+        const scene = window.keepie.game.scene.getScene('Play')
+        scene.ball.vy = -900
+      })
+      await sleep(300)
+      const zoomAfterFakeRise = await page.evaluate(() => {
+        const zoom = window.keepie?.game?.scene?.getScene('Play')?.cameras?.main?.zoom
+        return Number.isFinite(zoom) ? zoom : -1
+      })
+      if (!(zoomAfterFakeRise > 0.99)) {
+        throw new Error(
+          `zoom reabriu sem chute (>0.99 esperado); recebi ${zoomAfterFakeRise.toFixed(4)}`,
+        )
       }
 
       // 3) Streak Saver: ativa e o próximo whiff não zera o streak.
@@ -786,7 +805,8 @@ async function main() {
 
       return (
         `Magnet ${magnet.remaining} ms · Power Kick ${kick.speed} u/s · ` +
-        `zoom ${wide.zoom.toFixed(3)}→${zoomBack.toFixed(3)} · HUD ×${wide.hudScale.toFixed(3)} @x${wide.hudX.toFixed(1)} · ` +
+        `zoom ${wide.zoom.toFixed(3)}→${zoomBack.toFixed(3)} (subida falsa ${zoomAfterFakeRise.toFixed(3)}) · ` +
+        `HUD ×${wide.hudScale.toFixed(3)} @x${wide.hudX.toFixed(1)} · ` +
         `streak ${streak.before}→${streak.after} · net intacta`
       )
     })

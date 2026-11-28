@@ -1,11 +1,13 @@
 import Phaser from 'phaser'
 import {
-  flightZoomEnvelope,
+  advanceFlightZoom,
+  flightZoomTarget,
   kickZoomAmount,
   metersFromTop,
   ratchetCameraY,
   smoothCameraY,
   smoothZoom,
+  type FlightZoomPhase,
 } from '../core/camera'
 import { barrierBounce, reflectVelocity, wallBounce } from '../core/collision'
 import { resolveAim } from '../core/aim'
@@ -84,7 +86,9 @@ export class PlayScene extends Phaser.Scene {
   private cameraY = 0
   /** Zoom contínuo da câmera (1 = normal; <1 = afastada no voo). */
   private zoom = 1
-  /** Recuo máximo do último chute; o envelope do voo decide quanto dele está ativo. */
+  /** Fase do recuo: abre no chute, fecha no ápice da bola. */
+  private zoomPhase: FlightZoomPhase = 'idle'
+  /** Recuo do último chute forte, aplicado enquanto a fase estiver `open`. */
   private shotWide = 0
   /** Teto de queda do estágio atual; sobe a cada `difficulty.stageMeters` de pico. */
   private fallSpeedLimit: number = TUNING.physics.maxFallSpeed
@@ -219,6 +223,7 @@ export class PlayScene extends Phaser.Scene {
     this.cameras.main.setScroll(0, 0)
     // Retry/create sempre recomeçam em zoom 1, sem resíduo de chute anterior.
     this.zoom = 1
+    this.zoomPhase = 'idle'
     this.shotWide = 0
     this.cameras.main.setZoom(1)
 
@@ -541,12 +546,11 @@ export class PlayScene extends Phaser.Scene {
 
     this.cameras.main.setScroll(0, this.cameraY)
 
-    // Zoom de transmissão: um chute forte afasta de forma contínua; conforme
-    // a bola desce, o envelope fecha o recuo suavemente de volta a 1. O alvo
-    // sempre parte do zoom atual — um chute novo nunca reinicia a câmera.
-    const ballScreenY = this.ball.y - this.cameraY
-    const env = flightZoomEnvelope(this.ball.vy, ballScreenY, height)
-    const zoomTarget = 1 - this.shotWide * env
+    // Zoom de transmissão: o chute abre rápido e proporcional à força; no ápice
+    // (vy >= 0) a fase passa a `closing` e o recuo volta a 1 sem esperar a bola
+    // descer. O alvo sempre parte do zoom atual — um chute novo nunca pisca.
+    this.zoomPhase = advanceFlightZoom(this.zoomPhase, this.ball.vy)
+    const zoomTarget = flightZoomTarget(this.zoomPhase, this.shotWide)
     const speed =
       zoomTarget < this.zoom ? TUNING.camera.zoomOpenSpeed : TUNING.camera.zoomCloseSpeed
     this.zoom = smoothZoom(this.zoom, zoomTarget, dt, speed)
@@ -557,6 +561,9 @@ export class PlayScene extends Phaser.Scene {
   /** Recuo do próximo voo, proporcional à força do chute. */
   private noteKick(power: number): void {
     this.shotWide = kickZoomAmount(power)
+    // Chute fraco não mexe na câmera; qualquer recuo redefine a fase de abertura,
+    // inclusive no meio de um fechamento (sem reset do zoom atual).
+    if (this.shotWide > 0) this.zoomPhase = 'open'
   }
 
   /** Contra-escala do HUD: a tela continua com o mesmo tamanho e posição. */
@@ -1679,8 +1686,9 @@ export class PlayScene extends Phaser.Scene {
       return
     }
     this.dead = true
-    // Morte/retry não herdam zoom do chute anterior.
+    // Morte/retry não herdam zoom nem fase do chute anterior.
     this.zoom = 1
+    this.zoomPhase = 'idle'
     this.shotWide = 0
     this.cameras.main.setZoom(1)
     this.syncFixedUi()

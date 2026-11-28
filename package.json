@@ -1,7 +1,7 @@
 {
   "name": "keepie-uppie",
   "private": true,
-  "version": "0.9.0-dev",
+  "version": "0.10.0-dev",
   "type": "module",
   "description": "Keepie-Uppie — endless vertical keepie-uppy arcade",
   "scripts": {

@@ -4,12 +4,13 @@ import { TUNING } from '../game/tuning'
 
 /**
  * Margem além da tela para o zoom out do chute e para o entorno do campo.
- * Com 4% de recuo a janela ganha ~11 u laterais e ~22 u verticais; 56 também
- * cobre o stress de 8% (~24 u laterais e ~47 u verticais). Serve para o céu
- * transbordar e para a faixa de arquibancada revelada fora das paredes e
- * abaixo da linha de morte. Em zoom 1 tudo isso fica fora da tela.
+ * Com 12% de recuo (zoom 0,88) a janela ganha ~32,4 u de cada lateral e
+ * ~73,6 u no topo/fundo (na geometria exata do Phaser as laterais chegam a
+ * ~37 u). 80 cobre as duas direções com folga: céu transbordado, faixa de
+ * arquibancada revelada fora das paredes e trecho abaixo da linha de morte.
+ * Em zoom 1 tudo isso fica fora da tela.
  */
-export const BACKDROP_BLEED = 56
+export const BACKDROP_BLEED = 80
 
 /**
  * Fundo comum das cenas: gradiente, grid de altitude, paredes e linha de morte.

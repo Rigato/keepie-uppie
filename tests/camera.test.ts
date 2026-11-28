@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
-  flightZoomEnvelope,
+  advanceFlightZoom,
+  flightZoomTarget,
   kickZoomAmount,
   metersFromTop,
   ratchetCameraY,
   smoothCameraY,
   smoothZoom,
+  type FlightZoomPhase,
 } from '../src/core/camera'
 import { TUNING } from '../src/game/tuning'
 
@@ -83,46 +85,52 @@ describe('zoom do chute', () => {
   })
 })
 
-describe('envelope do voo', () => {
-  const H = TUNING.world.height
-  const { zoomHoldUntil, zoomCloseAt } = TUNING.camera
+describe('fase do zoom de voo', () => {
+  const phases: FlightZoomPhase[] = ['idle', 'open', 'closing']
 
-  it('mantém o afastamento enquanto a bola sobe', () => {
-    expect(flightZoomEnvelope(-1, H * 0.95, H)).toBe(1)
-    expect(flightZoomEnvelope(-2600, 0, H)).toBe(1)
-  })
-
-  it('segura o afastamento no topo da queda', () => {
-    expect(flightZoomEnvelope(0, 0, H)).toBe(1)
-    expect(flightZoomEnvelope(900, H * zoomHoldUntil, H)).toBe(1)
-    expect(flightZoomEnvelope(900, H * zoomHoldUntil - 1, H)).toBe(1)
-  })
-
-  it('fecha de vez no fundo', () => {
-    expect(flightZoomEnvelope(900, H * zoomCloseAt, H)).toBe(0)
-    expect(flightZoomEnvelope(900, H, H)).toBe(0)
-    expect(flightZoomEnvelope(900, H * 2, H)).toBe(0)
-  })
-
-  it('cai monotonicamente entre o hold e o close', () => {
-    const steps = 20
-    let previous = 1
-    for (let i = 0; i <= steps; i += 1) {
-      const y = H * (zoomHoldUntil + (zoomCloseAt - zoomHoldUntil) * (i / steps))
-      const env = flightZoomEnvelope(900, y, H)
-      expect(env).toBeGreaterThanOrEqual(0)
-      expect(env).toBeLessThanOrEqual(1)
-      expect(env).toBeLessThanOrEqual(previous)
-      previous = env
+  it('idle é estável', () => {
+    for (const vy of [-2600, 0, 900]) {
+      expect(advanceFlightZoom('idle', vy)).toBe('idle')
     }
-    expect(flightZoomEnvelope(900, H * ((zoomHoldUntil + zoomCloseAt) / 2), H)).toBeCloseTo(0.5, 5)
   })
 
-  it('entradas inválidas mantêm o afastamento (sem pisco)', () => {
-    expect(flightZoomEnvelope(Number.NaN, H * 0.9, H)).toBe(1)
-    expect(flightZoomEnvelope(900, Number.POSITIVE_INFINITY, H)).toBe(1)
-    expect(flightZoomEnvelope(900, H * 0.9, 0)).toBe(1)
-    expect(flightZoomEnvelope(900, H * 0.9, Number.NaN)).toBe(1)
+  it('open segue aberta enquanto a bola sobe', () => {
+    expect(advanceFlightZoom('open', -2600)).toBe('open')
+    expect(advanceFlightZoom('open', -1)).toBe('open')
+  })
+
+  it('open fecha no ápice (vy = 0) e na queda (vy > 0)', () => {
+    expect(advanceFlightZoom('open', 0)).toBe('closing')
+    expect(advanceFlightZoom('open', 900)).toBe('closing')
+  })
+
+  it('closing nunca volta a abrir sem um chute novo', () => {
+    for (const vy of [-2600, -1, 0, 900]) {
+      expect(advanceFlightZoom('closing', vy)).toBe('closing')
+    }
+  })
+
+  it('vy inválido mantém a fase (sem pisco)', () => {
+    for (const phase of phases) {
+      expect(advanceFlightZoom(phase, Number.NaN)).toBe(phase)
+      expect(advanceFlightZoom(phase, Number.POSITIVE_INFINITY)).toBe(phase)
+      expect(advanceFlightZoom(phase, Number.NEGATIVE_INFINITY)).toBe(phase)
+    }
+  })
+
+  it('a abertura devolve o recuo clampado em 0..1', () => {
+    expect(flightZoomTarget('open', 0)).toBe(1)
+    expect(flightZoomTarget('open', TUNING.camera.kickZoomMax)).toBeCloseTo(0.88, 5)
+    expect(flightZoomTarget('open', -1)).toBe(1)
+    expect(flightZoomTarget('open', 2)).toBe(0)
+    expect(flightZoomTarget('open', Number.NaN)).toBe(1)
+  })
+
+  it('idle e closing sempre miram o zoom normal', () => {
+    for (const phase of ['idle', 'closing'] as FlightZoomPhase[]) {
+      expect(flightZoomTarget(phase, 0)).toBe(1)
+      expect(flightZoomTarget(phase, TUNING.camera.kickZoomMax)).toBe(1)
+    }
   })
 })
 
