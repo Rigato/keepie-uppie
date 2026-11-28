@@ -3,10 +3,13 @@ import { PALETTE } from '../game/palette'
 import { TUNING } from '../game/tuning'
 
 /**
- * Margem de céu além da tela para o zoom out do chute. Com 4% de recuo a
- * janela ganha ~11 u laterais e ~22 u verticais; 28 cobre sem folga apertada.
+ * Margem além da tela para o zoom out do chute e para o entorno do campo.
+ * Com 4% de recuo a janela ganha ~11 u laterais e ~22 u verticais; 56 também
+ * cobre o stress de 8% (~24 u laterais e ~47 u verticais). Serve para o céu
+ * transbordar e para a faixa de arquibancada revelada fora das paredes e
+ * abaixo da linha de morte. Em zoom 1 tudo isso fica fora da tela.
  */
-export const BACKDROP_BLEED = 28
+export const BACKDROP_BLEED = 56
 
 /**
  * Fundo comum das cenas: gradiente, grid de altitude, paredes e linha de morte.
@@ -29,6 +32,14 @@ export function drawBackdrop(
   g.fillGradientStyle(PALETTE.bgSoft, PALETTE.bgSoft, PALETTE.bg, PALETTE.bg, 1)
   g.fillRect(-bleed, 0, width + bleed * 2, height)
   g.fillStyle(PALETTE.bg, 1)
+  g.fillRect(-bleed, height, width + bleed * 2, bleed)
+
+  // Entorno do campo: o que o zoom revela fora das paredes e abaixo da linha
+  // de morte. Pinta por cima do céu transbordado nessas faixas; as laterais
+  // incluem os cantos inferiores. Em zoom 1 nada disso aparece na tela.
+  g.fillStyle(PALETTE.stands, 1)
+  g.fillRect(-bleed, 0, bleed, height + bleed)
+  g.fillRect(width, 0, bleed, height + bleed)
   g.fillRect(-bleed, height, width + bleed * 2, bleed)
 
   g.lineStyle(1, PALETTE.ink, 0.03)

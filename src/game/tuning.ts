@@ -147,10 +147,20 @@ export const TUNING = {
     kickZoomThreshold: 0.5,
     /** Recuo máximo de zoom no chute cheio (4%). [TESTE] */
     kickZoomMax: 0.04,
-    /** Saída rápida, pausa curta no fundo e volta mais lenta. [TESTE] */
-    kickZoomOutMs: 80,
-    kickZoomHoldMs: 40,
-    kickZoomBackMs: 200,
+    /**
+     * [TESTE] Fração da altura da tela até a qual o zoom permanece aberto
+     * durante a queda da bola (envelope do voo). Começa a fechar depois dela.
+     */
+    zoomHoldUntil: 0.4,
+    /**
+     * [TESTE] Fração da altura da tela em que o zoom já voltou ao normal
+     * (envelope 0). Entre `zoomHoldUntil` e aqui o fechamento é smoothstep.
+     */
+    zoomCloseAt: 0.72,
+    /** [TESTE] Velocidade exponencial de abertura do zoom no chute (1/s). */
+    zoomOpenSpeed: 4.2,
+    /** [TESTE] Velocidade exponencial de fechamento do zoom na queda (1/s). */
+    zoomCloseSpeed: 3.6,
   },
 
   run: {

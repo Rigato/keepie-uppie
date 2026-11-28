@@ -48,3 +48,66 @@ export function kickZoomAmount(power: number): number {
   const smooth = t * t * (3 - 2 * t)
   return smooth * TUNING.camera.kickZoomMax
 }
+
+function smoothstep(t: number): number {
+  const clamped = Math.max(0, Math.min(1, t))
+  return clamped * clamped * (3 - 2 * clamped)
+}
+
+/**
+ * Envelope 0..1 do afastamento da câmera durante o voo da bola.
+ *
+ * Enquanto a bola sobe (`vy < 0`) o zoom fica totalmente aberto (1). Na queda,
+ * o afastamento se mantém até `ballScreenY = viewHeight * zoomHoldUntil` e
+ * fecha com smoothstep até `viewHeight * zoomCloseAt`; abaixo disso o alvo é
+ * o zoom normal (0). Entradas inválidas devolvem 1 de propósito: manter o
+ * afastamento evita um salto/pisco de zoom quando uma leitura falha.
+ */
+export function flightZoomEnvelope(
+  vy: number,
+  ballScreenY: number,
+  viewHeight: number,
+): number {
+  if (
+    !Number.isFinite(vy) ||
+    !Number.isFinite(ballScreenY) ||
+    !Number.isFinite(viewHeight) ||
+    viewHeight <= 0
+  ) {
+    return 1
+  }
+  if (vy < 0) return 1
+
+  const hold = viewHeight * TUNING.camera.zoomHoldUntil
+  const close = viewHeight * TUNING.camera.zoomCloseAt
+  if (ballScreenY <= hold) return 1
+  if (ballScreenY >= close) return 0
+  const span = close - hold
+  if (span <= 0) return 0
+  return 1 - smoothstep((ballScreenY - hold) / span)
+}
+
+/**
+ * Aproximação exponencial contínua (sem overshoot) para o zoom da câmera.
+ * `dt <= 0` ou qualquer entrada inválida mantém o valor atual — nada de
+ * reinícios bruscos que façam a tela piscar.
+ */
+export function smoothZoom(
+  current: number,
+  target: number,
+  dtSeconds: number,
+  speed: number = TUNING.camera.zoomOpenSpeed,
+): number {
+  if (
+    !Number.isFinite(current) ||
+    !Number.isFinite(target) ||
+    !Number.isFinite(dtSeconds) ||
+    !Number.isFinite(speed) ||
+    dtSeconds <= 0
+  ) {
+    return current
+  }
+  const rate = Math.max(0, speed)
+  const t = 1 - Math.exp(-rate * dtSeconds)
+  return current + (target - current) * t
+}

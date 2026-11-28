@@ -13,6 +13,8 @@ export const PALETTE = {
   ballPatch: 0x1a2a3d,
   ballSeam: 0xd6e2ec,
   wall: 0xa3c2d9,
+  /** Entorno/arquibancada fora do campo: um tom abaixo do wall, sem brigar com o céu. */
+  stands: 0x93b3cc,
   danger: 0xd64545,
   /** Barreira de jogadores de falta: azul forte, short claro, dois tons de pele. */
   barrier: 0x1466c8,

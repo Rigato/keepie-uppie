@@ -570,6 +570,9 @@ async function main() {
         for (const goal of scene.goals) goal.destroy()
         scene.goals = []
         scene.die = () => {}
+        // O passo da estamina congelou a câmera; aqui o zoom do voo precisa
+        // voltar a rodar (a física continua congelada para o chute determinístico).
+        delete scene.updateCamera
         scene.started = true
         scene.startY = 0
         scene.minY = 0
@@ -689,23 +692,48 @@ async function main() {
         throw new Error(`chute do Power Kick a ${kick.speed} u/s; esperava ~2750`)
       }
 
-      // O chute forte também puxa a câmera de leve para trás e volta.
-      const zoomOut = await poll(
-        () =>
-          page.evaluate(() => {
-            const zoom = window.keepie?.game?.scene?.getScene('Play')?.cameras?.main?.zoom
-            return Number.isFinite(zoom) && zoom < 0.999 ? zoom : null
-          }),
-        { timeout: TIMEOUT.bar, interval: 20, label: 'zoom out do chute forte' },
-      )
-      await poll(
-        () =>
-          page.evaluate(() => {
-            const zoom = window.keepie?.game?.scene?.getScene('Play')?.cameras?.main?.zoom
-            return Number.isFinite(zoom) && Math.abs(zoom - 1) < 0.002 ? true : null
-          }),
-        { timeout: TIMEOUT.bar, interval: 30, label: 'zoom de volta ao normal' },
-      )
+      // O chute forte afasta a câmera de forma contínua; no voo o HUD continua
+      // com contra-escala (mesmo tamanho/posição na tela). Depois, ao forçar a
+      // queda da bola, o zoom volta ao normal sem pulso nem reset.
+      await sleep(450)
+      const wide = await page.evaluate(() => {
+        const scene = window.keepie.game.scene.getScene('Play')
+        const zoom = scene.cameras.main.zoom
+        return {
+          zoom,
+          hudScale: scene.uiRoot.scaleX,
+          hudX: scene.uiRoot.x,
+          viewWidth: scene.cameras.main.width,
+        }
+      })
+      if (!(wide.zoom < 0.995)) {
+        throw new Error(`zoom aberto esperado (<0.995); recebi ${wide.zoom.toFixed(4)}`)
+      }
+      if (Math.abs(wide.hudScale - 1 / wide.zoom) >= 0.02) {
+        throw new Error(
+          `HUD não contra-escalou: scale ${wide.hudScale.toFixed(4)} vs 1/zoom ${(1 / wide.zoom).toFixed(4)}`,
+        )
+      }
+      const expectedHudX = (wide.viewWidth / 2) * (1 - 1 / wide.zoom)
+      if (Math.abs(wide.hudX - expectedHudX) >= 1) {
+        throw new Error(
+          `HUD deslocou: x ${wide.hudX.toFixed(2)} vs esperado ${expectedHudX.toFixed(2)}`,
+        )
+      }
+
+      await page.evaluate(() => {
+        const scene = window.keepie.game.scene.getScene('Play')
+        scene.ball.y = scene.cameraY + scene.cameras.main.height * 0.85
+        scene.ball.vy = 900
+      })
+      await sleep(500)
+      const zoomBack = await page.evaluate(() => {
+        const zoom = window.keepie?.game?.scene?.getScene('Play')?.cameras?.main?.zoom
+        return Number.isFinite(zoom) ? zoom : -1
+      })
+      if (!(zoomBack > 0.99)) {
+        throw new Error(`zoom não voltou ao normal (>0.99); recebi ${zoomBack.toFixed(4)}`)
+      }
 
       // 3) Streak Saver: ativa e o próximo whiff não zera o streak.
       await tapSlot('streak')
@@ -756,7 +784,11 @@ async function main() {
         throw new Error(`loadout deveria esvaziar; ficou ${JSON.stringify(finalSave.loadout)}`)
       }
 
-      return `Magnet ${magnet.remaining} ms · Power Kick ${kick.speed} u/s · zoom ${zoomOut.toFixed(3)}→1 · streak ${streak.before}→${streak.after} · net intacta`
+      return (
+        `Magnet ${magnet.remaining} ms · Power Kick ${kick.speed} u/s · ` +
+        `zoom ${wide.zoom.toFixed(3)}→${zoomBack.toFixed(3)} · HUD ×${wide.hudScale.toFixed(3)} @x${wide.hudX.toFixed(1)} · ` +
+        `streak ${streak.before}→${streak.after} · net intacta`
+      )
     })
 
     await runStep('Bola: padrão gira e acabamento fica parado', async () => {

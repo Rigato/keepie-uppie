@@ -1,5 +1,12 @@
 import Phaser from 'phaser'
-import { kickZoomAmount, metersFromTop, ratchetCameraY, smoothCameraY } from '../core/camera'
+import {
+  flightZoomEnvelope,
+  kickZoomAmount,
+  metersFromTop,
+  ratchetCameraY,
+  smoothCameraY,
+  smoothZoom,
+} from '../core/camera'
 import { barrierBounce, reflectVelocity, wallBounce } from '../core/collision'
 import { resolveAim } from '../core/aim'
 import {
@@ -75,8 +82,10 @@ export class PlayScene extends Phaser.Scene {
   private meters = 0
   private coins = 0
   private cameraY = 0
-  /** Geração do recuo de zoom: invalida onComplete de tweens órfãos. */
-  private zoomSeq = 0
+  /** Zoom contínuo da câmera (1 = normal; <1 = afastada no voo). */
+  private zoom = 1
+  /** Recuo máximo do último chute; o envelope do voo decide quanto dele está ativo. */
+  private shotWide = 0
   /** Teto de queda do estágio atual; sobe a cada `difficulty.stageMeters` de pico. */
   private fallSpeedLimit: number = TUNING.physics.maxFallSpeed
   /** Último estágio aplicado, para o aviso de ritmo disparar uma vez por degrau. */
@@ -146,6 +155,8 @@ export class PlayScene extends Phaser.Scene {
   private goals: GoalInstance[] = []
   /** Área do botão SHOP na tela de morte, em coordenadas de tela. */
   private deathShopRect = new Phaser.Geom.Rectangle(0, 0, 0, 0)
+  /** Container de tela com contra-escala: mantém o HUD fixo sob o zoom. */
+  private uiRoot!: Phaser.GameObjects.Container
 
   constructor() {
     super('Play')
@@ -207,8 +218,8 @@ export class PlayScene extends Phaser.Scene {
 
     this.cameras.main.setScroll(0, 0)
     // Retry/create sempre recomeçam em zoom 1, sem resíduo de chute anterior.
-    this.zoomSeq += 1
-    this.tweens.killTweensOf(this.cameras.main)
+    this.zoom = 1
+    this.shotWide = 0
     this.cameras.main.setZoom(1)
 
     drawBackdrop(this, { walls: true }).setScrollFactor(0).setDepth(0)
@@ -219,6 +230,10 @@ export class PlayScene extends Phaser.Scene {
     // Fica abaixo da bola e do rastro para o ápice em `camera.maxTop` não
     // escurecer o que o jogador precisa ver (o HUD continua acima, no depth 100).
     const scrim = this.add.graphics().setScrollFactor(0).setDepth(8)
+    // Faixa sólida acima de y=0: no zoom out o topo do gradiente não pode
+    // deixar a faixa descoberta (a cor é a mesma do início do gradiente).
+    scrim.fillStyle(PALETTE.bgSoft, 0.9)
+    scrim.fillRect(-BACKDROP_BLEED, -BACKDROP_BLEED, width + BACKDROP_BLEED * 2, BACKDROP_BLEED)
     scrim.fillGradientStyle(
       PALETTE.bgSoft,
       PALETTE.bgSoft,
@@ -274,8 +289,8 @@ export class PlayScene extends Phaser.Scene {
       .rectangle(
         TUNING.world.width / 2,
         TUNING.world.height / 2,
-        TUNING.world.width,
-        TUNING.world.height,
+        TUNING.world.width + BACKDROP_BLEED * 2,
+        TUNING.world.height + BACKDROP_BLEED * 2,
         PALETTE.exhaust,
         1,
       )
@@ -402,6 +417,23 @@ export class PlayScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(100)
 
+    // HUD de tela: um container com contra-escala compensa o zoom da câmera.
+    // Os filhos precisam de scrollFactor 1 para o hit-test do Phaser continuar
+    // funcionando; o container é que fica preso à tela (scrollFactor 0).
+    this.uiRoot = this.add.container(0, 0).setScrollFactor(0).setDepth(100)
+    type ScreenObject = Phaser.GameObjects.GameObject &
+      Phaser.GameObjects.Components.ScrollFactor &
+      Phaser.GameObjects.Components.Depth
+    for (const raw of [...this.children.list]) {
+      const obj = raw as ScreenObject
+      if (obj === this.uiRoot) continue
+      if (obj.scrollFactorX !== 0 || obj.scrollFactorY !== 0) continue
+      if (obj.depth < 100) continue
+      this.uiRoot.add(obj)
+      obj.setScrollFactor(1)
+    }
+    this.syncFixedUi()
+
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       this.handlePointerDown(pointer.worldX, pointer.worldY)
     })
@@ -423,6 +455,8 @@ export class PlayScene extends Phaser.Scene {
   }
 
   update(_time: number, deltaMs: number): void {
+    // O HUD acompanha o zoom do frame anterior antes de qualquer early return.
+    this.syncFixedUi()
     if (this.dead) return
 
     const slow = (this.registry.get('timeScale') as number | undefined) ?? 1
@@ -490,17 +524,51 @@ export class PlayScene extends Phaser.Scene {
   }
 
   private updateCamera(dt: number): void {
-    if (!this.started) return
-
     const height = TUNING.world.height
-    const target = ratchetCameraY(this.cameraY, this.ball.y, height)
-    this.cameraY = smoothCameraY(this.cameraY, target, dt, TUNING.camera.followSpeed)
+    if (!this.started) {
+      this.zoom = 1
+      this.cameras.main.setZoom(1)
+      this.syncFixedUi()
+      return
+    }
+
+    const targetScroll = ratchetCameraY(this.cameraY, this.ball.y, height)
+    this.cameraY = smoothCameraY(this.cameraY, targetScroll, dt, TUNING.camera.followSpeed)
 
     // Atrás da bola por um instante, mas nunca deixa a bola sair pelo topo.
     const maxTop = this.ball.y - height * TUNING.camera.maxTop
     this.cameraY = Math.min(this.cameraY, maxTop)
 
     this.cameras.main.setScroll(0, this.cameraY)
+
+    // Zoom de transmissão: um chute forte afasta de forma contínua; conforme
+    // a bola desce, o envelope fecha o recuo suavemente de volta a 1. O alvo
+    // sempre parte do zoom atual — um chute novo nunca reinicia a câmera.
+    const ballScreenY = this.ball.y - this.cameraY
+    const env = flightZoomEnvelope(this.ball.vy, ballScreenY, height)
+    const zoomTarget = 1 - this.shotWide * env
+    const speed =
+      zoomTarget < this.zoom ? TUNING.camera.zoomOpenSpeed : TUNING.camera.zoomCloseSpeed
+    this.zoom = smoothZoom(this.zoom, zoomTarget, dt, speed)
+    this.cameras.main.setZoom(this.zoom)
+    this.syncFixedUi()
+  }
+
+  /** Recuo do próximo voo, proporcional à força do chute. */
+  private noteKick(power: number): void {
+    this.shotWide = kickZoomAmount(power)
+  }
+
+  /** Contra-escala do HUD: a tela continua com o mesmo tamanho e posição. */
+  private syncFixedUi(): void {
+    if (!this.uiRoot) return
+    const { width, height } = TUNING.world
+    if (Math.abs(this.zoom - 1) < 1e-4) {
+      this.uiRoot.setScale(1).setPosition(0, 0)
+      return
+    }
+    const s = 1 / this.zoom
+    this.uiRoot.setScale(s).setPosition((width / 2) * (1 - s), (height / 2) * (1 - s))
   }
 
   private updateAltitude(): void {
@@ -875,18 +943,22 @@ export class PlayScene extends Phaser.Scene {
   }
 
   private handlePointerDown(x: number, y: number): void {
+    // O HUD está fixo na tela, mas o ponteiro chega em coordenadas de mundo:
+    // projeta na tela visual (com o zoom) antes de testar as zonas do HUD.
+    const { width, height } = TUNING.world
+    const screenX = (x - width / 2) * this.zoom + width / 2
+    const screenY = (y - this.cameraY - height / 2) * this.zoom + height / 2
+
     if (this.dead) {
       if (this.retryReady) {
-        const screenY = y - this.cameraY
-        if (Phaser.Geom.Rectangle.Contains(this.deathShopRect, x, screenY)) return
+        if (Phaser.Geom.Rectangle.Contains(this.deathShopRect, screenX, screenY)) return
         this.retry()
       }
       return
     }
     if (this.aiming) return
-    const screenY = y - this.cameraY
-    if (this.consumableBar.contains(x, screenY)) return
-    if (Phaser.Geom.Rectangle.Contains(this.pauseRect, x, screenY)) return
+    if (this.consumableBar.contains(screenX, screenY)) return
+    if (Phaser.Geom.Rectangle.Contains(this.pauseRect, screenX, screenY)) return
 
     if (this.aimedArmed) {
       const touch = { ...this.ball, r: TUNING.kick.touchRadius }
@@ -948,7 +1020,7 @@ export class PlayScene extends Phaser.Scene {
 
     this.ball.vx = shot.dir.x * shot.speed
     this.ball.vy = shot.dir.y * shot.speed
-    this.playKickZoom(shot.ratio)
+    this.noteKick(shot.ratio)
     this.ballSpin.residual = kickSpin(aimOffset(shot.dir.x), shot.ratio)
     this.arcApexY = this.ball.y
     this.lastArc((2 * shot.speed) / TUNING.physics.gravity, shot.ratio)
@@ -1338,7 +1410,7 @@ export class PlayScene extends Phaser.Scene {
 
     this.ball.vx = result.vx
     this.ball.vy = result.vy
-    this.playKickZoom(result.power)
+    this.noteKick(result.power)
     this.ballSpin.residual = kickSpin(result.offset, result.power)
     this.arcApexY = this.ball.y
     this.lastArc(result.arcTime, result.power)
@@ -1359,46 +1431,6 @@ export class PlayScene extends Phaser.Scene {
       duration: 60 + 30 * power,
       yoyo: true,
       ease: 'Quad.out',
-    })
-  }
-
-  /**
-   * Recuo de câmera proporcional à força: sai rápido, segura o fundo por um
-   * instante e volta devagar. Cadeia de tweens (não yoyo) + número de geração
-   * evitam resíduo de zoom e onComplete órfão quando outro chute entra no meio.
-   */
-  private playKickZoom(power: number): void {
-    const amount = kickZoomAmount(power)
-    if (amount <= 0) return
-
-    const cam = this.cameras.main
-    const seq = ++this.zoomSeq
-    this.tweens.killTweensOf(cam)
-    // Garante partida de 1 mesmo se um tween anterior foi interrompido.
-    cam.setZoom(1)
-
-    const zoomed = 1 - amount
-    const alive = (): boolean => seq === this.zoomSeq && !this.dead && this.scene.isActive()
-    this.tweens.add({
-      targets: cam,
-      zoom: { from: 1, to: zoomed },
-      duration: TUNING.camera.kickZoomOutMs,
-      ease: 'Quad.out',
-      onComplete: () => {
-        if (!alive()) return
-        cam.setZoom(zoomed)
-        this.tweens.add({
-          targets: cam,
-          zoom: { from: zoomed, to: 1 },
-          delay: TUNING.camera.kickZoomHoldMs,
-          duration: TUNING.camera.kickZoomBackMs,
-          ease: 'Quad.inOut',
-          onComplete: () => {
-            if (!alive()) return
-            cam.setZoom(1)
-          },
-        })
-      },
     })
   }
 
@@ -1647,10 +1679,11 @@ export class PlayScene extends Phaser.Scene {
       return
     }
     this.dead = true
-    // Morte/retry não herdam zoom: tween morto e câmera de volta ao normal.
-    this.zoomSeq += 1
-    this.tweens.killTweensOf(this.cameras.main)
+    // Morte/retry não herdam zoom do chute anterior.
+    this.zoom = 1
+    this.shotWide = 0
     this.cameras.main.setZoom(1)
+    this.syncFixedUi()
     this.aiming = false
     this.bufferedTap = null
     this.aimedArmed = false
@@ -1852,11 +1885,14 @@ export class PlayScene extends Phaser.Scene {
 
     const offset = ((this.cameraY % spacing) + spacing) % spacing
     g.lineStyle(1, PALETTE.ink, 0.03)
-    for (let y = offset - spacing; y < height + spacing; y += spacing) g.lineBetween(0, y, width, y)
+    for (let y = offset - spacing; y < height; y += spacing) {
+      if (y >= 0) g.lineBetween(0, y, width, y)
+    }
 
     const strong = ((this.cameraY % strongSpacing) + strongSpacing) % strongSpacing
     g.lineStyle(1, PALETTE.accent, 0.06)
-    for (let y = strong - strongSpacing; y < height + strongSpacing; y += strongSpacing)
-      g.lineBetween(0, y, width, y)
+    for (let y = strong - strongSpacing; y < height; y += strongSpacing) {
+      if (y >= 0) g.lineBetween(0, y, width, y)
+    }
   }
 }
