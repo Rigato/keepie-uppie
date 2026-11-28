@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Versão** | 1.4 — consolidado em 18/11/2026 · atualizado em 27/11/2026 (Ciclo 0.8) |
+| **Versão** | 1.5 — consolidado em 18/11/2026 · atualizado em 28/11/2026 (Ciclo 0.9) |
 | **Fontes** | `ideia-semente.md` (rounds 1–6) · `referencias-comparativas.md` · `propostas-gameplay.md` (curadas) |
-| **Status** | GDD do MVP1 com os ciclos 0.3–0.8. Seções não validadas na conversa estão marcadas `[A Definir]` — sem invenção. |
+| **Status** | GDD do MVP1 com os ciclos 0.3–0.9. Seções não validadas na conversa estão marcadas `[A Definir]` — sem invenção. |
 | **Regra central** | Todo número citado como "valor de TESTE" é ponto de partida de calibração, não decisão. |
 
 ---
@@ -57,7 +57,7 @@ Toque que erra a bola **não faz nada**: sem chute, sem penalidade, a bola segue
 - **Linha de morte:** o fundo da tela; sobe com o progresso. Bola cruza o fundo = fim da run (rounds 1–2).
 - **Ritmo progressivo:** a cada 500 m de altitude de pico, o teto de queda sobe 75 u/s, de 900 até 1200 u/s; no limite a janela de toque fica em ~0,125 s. O aviso `FASTER FALLS` marca cada degrau e o ritmo reseta a cada run. A regra de chute não muda — o mesmo toque rende a mesma força; o que encolhe é o tempo de decisão. `[degraus: teste]`
 - **Paredes laterais:** a bola **quica** nas bordas da tela; sem wrap-around. O quique devolve 80% da velocidade lateral (`wallRestitution`): quiques encadeados perdem energia em vez de virar pinball, e a bola continua recuperável com um toque. `[damping: teste]`
-- **Zoom de força (0.8.0):** chutes acima de **50%** da força puxam a câmera de leve para trás, até **4%** no chute máximo, e a devolvem em ~0,3 s. Vale para chute normal, Chutão e Aimed. O efeito é só de leitura de impacto — não altera física, mira, colisão nem a catraca. `[TESTE]`
+- **Câmera de transmissão (0.9.0):** chutes acima de **50%** da força abrem o enquadramento, até **4%**, de forma contínua: a câmera afasta enquanto a bola sobe, segura no topo e fecha conforme a bola desce para a zona de toque (envelope de 40% a 72% da altura da tela). Não existe pulso nem reset a cada chute — o alvo parte sempre do zoom atual, então toques encadeados não piscam a tela. O HUD fica preso à tela (contra-escala), então não encolhe junto com a câmera. Vale para chute normal, Chutão e Aimed; é só leitura de impacto e não altera física, mira, colisão nem a catraca. `[TESTE]`
 - **Perfect Touch (C1):** janela central da bola — acertar = "PERFECT", **bônus pequeno de velocidade somado ao chute** + celebração curta. O perfect não substitui o timing: no ápice, o chute continua curto. `[janela e bônus: teste]`
 
 ### 3.4 Placar
@@ -115,7 +115,7 @@ Set piece a cada **400–600 m**, nunca antes de 100 m (primeiro em 200 m): mold
 - **Força do streak (0.6.0):** além do bônus de moedas/febre, cada chute limpo soma **+0,5% de velocidade de chute**, com teto de **+5%** (alcançado no ON FIRE, 10 chutes) `[TESTE]`. O bônus entra na curva normal, depois da queda e antes do +60 do Perfect; não se aplica ao Chutão nem ao Aimed Shot, que mantêm a calibração própria. É sutil de propósito: no NICE são +1,5%, no GREAT +3% e no ON FIRE +5% — o jogador sente o chute render um pouco mais, sem virar outro jogo. O multiplicador usa o streak **antes** do chute atual.
 
 ### 3.9 Feedback e legibilidade (pilar 4)
-Nenhuma interação silenciosa: chute (som + squash proporcionais à força — fraco é leve, forte é pesado; acima de 50% da força a câmera puxa ~4% para trás), desvio (traço + som), quique de corpo (flinch da barreira), estilhaço (partículas), powerup (anúncio + ícone de estado ativo), febre (mudança perceptível do estado). A bola rola com o movimento e recebe o giro do chute — só o padrão gira; brilho e sombra ficam fixos (0.4.1). O degrau de ritmo também se anuncia (`FASTER FALLS`), para a dificuldade não parecer bug. Consumíveis têm anúncio e efeito próprios (`SAVED!`, `CHUTÃO!`, `STREAK SAFE`, chips de Magnet/Shield/Sweet). O Goal anuncia `GOAL!` com flash e burst, e o objetivo é lido antes de o jogador chegar. Tempo de leitura em toda ativação. A estamina (0.6.0) avisa antes de punir: barra que drena, `EXHAUSTED` e tela cinza durante o bloqueio; nunca um toque que “não funciona” sem explicação.
+Nenhuma interação silenciosa: chute (som + squash proporcionais à força — fraco é leve, forte é pesado; acima de 50% da força a câmera abre o enquadramento até 4% e fecha conforme a bola desce, com o HUD fixo), desvio (traço + som), quique de corpo (flinch da barreira), estilhaço (partículas), powerup (anúncio + ícone de estado ativo), febre (mudança perceptível do estado). A bola rola com o movimento e recebe o giro do chute — só o padrão gira; brilho e sombra ficam fixos (0.4.1). O degrau de ritmo também se anuncia (`FASTER FALLS`), para a dificuldade não parecer bug. Consumíveis têm anúncio e efeito próprios (`SAVED!`, `CHUTÃO!`, `STREAK SAFE`, chips de Magnet/Shield/Sweet). O Goal anuncia `GOAL!` com flash e burst, e o objetivo é lido antes de o jogador chegar. Tempo de leitura em toda ativação. A estamina (0.6.0) avisa antes de punir: barra que drena, `EXHAUSTED` e tela cinza durante o bloqueio; nunca um toque que “não funciona” sem explicação.
 
 ### 3.10 Casos de borda
 - Whiff com Aimed Shot armado → powerup **permanece armado**.
@@ -268,7 +268,15 @@ Save-AD · Time-Warp · biomas · multiball (se provar valor) · online (se mere
 | Bloco | Conteúdo |
 |---|---|
 | Barreira | a folhagem da 0.7 sai e entra uma **barreira de 4 jogadores de falta**, estilizada, ombro a ombro e com braços cruzados; a bola **quica para cima e para o lado do impacto** em vez de drenar. Hitbox 152×32; subida mínima de 620 u/s e lateral de 300 u/s (até 520). |
-| Zoom | acima de **50%** da força, um zoom out sutil (até **4%**) acompanha o chute e volta em ~0,3 s; vale para chute normal, Chutão e Aimed. O fundo ganhou margem para o zoom não expor a borda do canvas. |
+| Zoom | acima de **50%** da força, um zoom out sutil (até **4%**) acompanha o chute e volta em ~0,3 s; vale para chute normal, Chutão e Aimed. O fundo ganhou margem para o zoom não expor a borda do canvas. *(substituído pela câmera de transmissão na 0.9.0)* |
 | Docs | `docs/release/fix18-barreira-e-zoom.md` |
+
+### Ciclo 0.9 — câmera de transmissão (implementado)
+| Bloco | Conteúdo |
+|---|---|
+| Câmera | o pulso de ~0,3 s da 0.8 sai; entra um afastamento contínuo (até **4%**) que abre enquanto a bola sobe, segura no topo e fecha conforme ela desce para a zona de toque (envelope de 40% a 72% da tela). O alvo parte do zoom atual, então chutes encadeados não reiniciam a câmera. Vale para chute normal, Chutão e Aimed. |
+| HUD | textos, pausa, estamina e barra de consumíveis ficam num contêiner de tela com contra-escala: não encolhem nem se deslocam com o zoom; os botões continuam clicáveis no afastamento. |
+| Moldura | o entorno do campo (laterais e faixa abaixo da linha de morte) é desenhado além da tela para o zoom revelar arquibancada/entorno em vez de vazio; o topo do scrim e o overlay de exaustão transbordam, e o grid não passa da linha de morte. |
+| Docs | `docs/release/fix19-camera-de-transmissao.md` |
 
 **Gate de validação:** o playtest do MVP1 decide tudo que vem depois — diversão se valida no jogável, não no documento.
